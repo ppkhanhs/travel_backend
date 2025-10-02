@@ -14,16 +14,13 @@ class AuthController extends Controller
     // 1. Đăng ký
     public function register(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-        ]);
-
+        // validate + tạo user
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'phone' => $request->phone,
             'password' => bcrypt($request->password),
+            'role' => $request->role,
         ]);
 
         return response()->json([
