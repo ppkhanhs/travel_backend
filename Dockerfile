@@ -25,8 +25,8 @@ RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 # Set quyền
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Cổng chạy PHP-FPM
+# Khai báo cổng HTTP để Render biết
 EXPOSE 8000
 
-CMD ["php-fpm"]
-
+# Chạy Laravel bằng built-in server
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
