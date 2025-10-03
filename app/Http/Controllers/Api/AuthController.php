@@ -31,28 +31,30 @@ class AuthController extends Controller
 
     // 2. Đăng nhập
     public function login(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required'
-        ]);
+{
+    $request->validate([
+        'email' => 'required',
+        'password' => 'required'
+    ]);
 
-        $user = User::where('email', $request->email)->first();
+    $user = User::where('email', $request->email)
+                ->orWhere('phone', $request->email)
+                ->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Email hoặc mật khẩu không đúng.'],
-            ]);
-        }
-
-        $token = $user->createToken('api-token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Đăng nhập thành công',
-            'access_token' => $token,
-            'user' => $user
+    if (!$user || !Hash::check($request->password, $user->password)) {
+        throw ValidationException::withMessages([
+            'email' => ['Email/Số điện thoại hoặc mật khẩu không đúng.'],
         ]);
     }
+
+    $token = $user->createToken('api-token')->plainTextToken;
+
+    return response()->json([
+        'message' => 'Đăng nhập thành công',
+        'access_token' => $token,
+        'user' => $user
+    ]);
+}
 
     // 3. Đăng xuất
     public function logout(Request $request)
