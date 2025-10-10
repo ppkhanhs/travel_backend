@@ -32,3 +32,11 @@ Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
+use App\Http\Controllers\Api\PartnerTourController;
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/partner/tours', [PartnerTourController::class, 'store']);
+    Route::get('/partner/tours',  [PartnerTourController::class, 'index']);
+    Route::put('/partner/tours/{id}', [PartnerTourController::class, 'update']);
+    Route::delete('/partner/tours/{id}', [PartnerTourController::class, 'destroy']);
+});
