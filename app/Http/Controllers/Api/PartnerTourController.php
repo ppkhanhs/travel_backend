@@ -6,109 +6,243 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PartnerTourController extends Controller
 {
-    // Lấy danh sách các tour của đối tác
+    // Trả về danh sách tour thuộc đối tác đã được duyệt
     public function index()
     {
-        $partnerId = Auth::id(); // Lấy ID partner đang đăng nhập
+        $partner = $this->getAuthenticatedPartner();
+
+        if (!$partner) {
+            return response()->json(['message' => 'Tài khoản đối tác của bạn chưa được phê duyệt hoặc không tồn tại.'], 403);
+        }
 
         $tours = DB::table('tours')
-            ->where('partner_id', $partnerId)
+            ->where('partner_id', $partner->id)
             ->orderBy('created_at', 'desc')
             ->get();
 
         return response()->json($tours);
     }
 
-    // Xem chi tiết một tour
+    // Xem chi tiết một tour thuộc đối tác
     public function show($id)
     {
-        $partnerId = Auth::id();
+        $partner = $this->getAuthenticatedPartner();
+
+        if (!$partner) {
+            return response()->json(['message' => 'Tài khoản đối tác của bạn chưa được phê duyệt hoặc không tồn tại.'], 403);
+        }
 
         $tour = DB::table('tours')
             ->where('id', $id)
-            ->where('partner_id', $partnerId)
+            ->where('partner_id', $partner->id)
             ->first();
 
         if (!$tour) {
-            return response()->json(['message' => 'Tour không tồn tại hoặc không thuộc quyền của bạn'], 404);
+            return response()->json(['message' => 'Không tìm thấy tour thuộc quyền của bạn.'], 404);
         }
 
         return response()->json($tour);
     }
 
-    // Thêm tour mới
+    // Tạo mới tour kèm lịch khởi hành đầu tiên
     public function store(Request $request)
     {
-        $partnerId = Auth::id();
+        $partner = $this->getAuthenticatedPartner();
+
+        if (!$partner) {
+            return response()->json(['message' => 'Tài khoản đối tác của bạn chưa được phê duyệt hoặc không tồn tại.'], 403);
+        }
 
         $request->validate([
             'title' => 'required|string',
-            'description' => 'required|string',
-            'destination' => 'required|string',
-            'price' => 'required|numeric',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'quota' => 'required|integer|min:1'
+            'description' => 'nullable|string',
+            'destination' => 'nullable|string',
+            'duration' => 'nullable|integer|min:1',
+            'base_price' => 'required|numeric|min:0',
+            'policy' => 'nullable|string',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string',
+            'media' => 'nullable|array',
+            'itinerary' => 'nullable|array',
+            'schedule.start_date' => 'required|date',
+            'schedule.end_date' => 'required|date|after_or_equal:schedule.start_date',
+            'schedule.seats_total' => 'required|integer|min:1',
+            'schedule.seats_available' => 'required|integer|min:0|lte:schedule.seats_total',
+            'schedule.season_price' => 'nullable|numeric|min:0',
         ]);
 
-        $id = DB::table('tours')->insertGetId([
-            'partner_id' => $partnerId,
+        $now = now();
+        $tourId = Str::uuid()->toString();
+
+        DB::table('tours')->insert([
+            'id' => $tourId,
+            'partner_id' => $partner->id,
             'title' => $request->title,
             'description' => $request->description,
             'destination' => $request->destination,
-            'price' => $request->price,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'quota' => $request->quota,
+            'duration' => $request->duration,
+            'base_price' => $request->base_price,
+            'policy' => $request->policy,
+            'tags' => $request->tags,
+            'media' => $request->media,
+            'itinerary' => $request->itinerary,
             'status' => 'pending',
-            'created_at' => now(),
-            'updated_at' => now(),
+            'created_at' => $now,
+            'updated_at' => $now,
         ]);
 
-        return response()->json(['message' => 'Tạo tour thành công', 'id' => $id], 201);
+        $schedule = $request->input('schedule');
+
+        // Lưu lịch khởi hành mặc định gắn với tour mới
+        DB::table('tour_schedules')->insert([
+            'id' => Str::uuid()->toString(),
+            'tour_id' => $tourId,
+            'start_date' => $schedule['start_date'],
+            'end_date' => $schedule['end_date'],
+            'seats_total' => $schedule['seats_total'],
+            'seats_available' => $schedule['seats_available'],
+            'season_price' => $schedule['season_price'] ?? null,
+        ]);
+
+        return response()->json(['message' => 'Tạo tour thành công.', 'id' => $tourId], 201);
     }
 
-    // Cập nhật tour
+    // Cập nhật tour và có thể đồng bộ lại lịch khởi hành
     public function update(Request $request, $id)
     {
-        $partnerId = Auth::id();
+        $partner = $this->getAuthenticatedPartner();
+
+        if (!$partner) {
+            return response()->json(['message' => 'Tài khoản đối tác của bạn chưa được phê duyệt hoặc không tồn tại.'], 403);
+        }
 
         $tour = DB::table('tours')
             ->where('id', $id)
-            ->where('partner_id', $partnerId)
+            ->where('partner_id', $partner->id)
             ->first();
 
         if (!$tour) {
-            return response()->json(['message' => 'Tour không tồn tại hoặc không thuộc quyền của bạn'], 404);
+            return response()->json(['message' => 'Không tìm thấy tour thuộc quyền của bạn.'], 404);
         }
 
-        $data = $request->only(['title', 'description', 'destination', 'price', 'start_date', 'end_date', 'quota']);
-        $data['updated_at'] = now();
+        $request->validate([
+            'title' => 'sometimes|required|string',
+            'description' => 'sometimes|nullable|string',
+            'destination' => 'sometimes|nullable|string',
+            'duration' => 'sometimes|nullable|integer|min:1',
+            'base_price' => 'sometimes|required|numeric|min:0',
+            'policy' => 'sometimes|nullable|string',
+            'tags' => 'sometimes|nullable|array',
+            'tags.*' => 'string',
+            'media' => 'sometimes|nullable|array',
+            'itinerary' => 'sometimes|nullable|array',
+            'status' => 'sometimes|required|in:pending,approved,rejected',
+            'schedule.id' => 'sometimes|nullable|uuid|exists:tour_schedules,id',
+            'schedule.start_date' => 'sometimes|required_with:schedule|date',
+            'schedule.end_date' => 'sometimes|required_with:schedule|date|after_or_equal:schedule.start_date',
+            'schedule.seats_total' => 'sometimes|required_with:schedule|integer|min:1',
+            'schedule.seats_available' => 'sometimes|required_with:schedule|integer|min:0|lte:schedule.seats_total',
+            'schedule.season_price' => 'sometimes|nullable|numeric|min:0',
+        ]);
 
-        DB::table('tours')->where('id', $id)->update($data);
+        $tourData = $request->only([
+            'title',
+            'description',
+            'destination',
+            'duration',
+            'base_price',
+            'policy',
+            'tags',
+            'media',
+            'itinerary',
+            'status',
+        ]);
 
-        return response()->json(['message' => 'Cập nhật tour thành công']);
+        if (!empty($tourData)) {
+            $tourData['updated_at'] = now();
+
+            DB::table('tours')
+                ->where('id', $id)
+                ->update($tourData);
+        }
+
+        if ($request->has('schedule')) {
+            $schedule = $request->input('schedule');
+            $scheduleData = [
+                'start_date' => $schedule['start_date'] ?? null,
+                'end_date' => $schedule['end_date'] ?? null,
+                'seats_total' => $schedule['seats_total'] ?? null,
+                'seats_available' => $schedule['seats_available'] ?? null,
+                'season_price' => $schedule['season_price'] ?? null,
+            ];
+
+            $scheduleData = array_filter(
+                $scheduleData,
+                static fn ($value) => !is_null($value)
+            );
+
+            if (!empty($schedule['id'])) {
+                DB::table('tour_schedules')
+                    ->where('id', $schedule['id'])
+                    ->where('tour_id', $id)
+                    ->update($scheduleData);
+            } elseif (!empty($scheduleData)) {
+                // Chưa có lịch => tạo mới
+                DB::table('tour_schedules')->insert(array_merge([
+                    'id' => Str::uuid()->toString(),
+                    'tour_id' => $id,
+                ], $scheduleData));
+            }
+        }
+
+        return response()->json(['message' => 'Cập nhật tour thành công.']);
     }
 
-    // Xoá tour
+    // Xóa tour và toàn bộ lịch khởi hành liên quan
     public function destroy($id)
     {
-        $partnerId = Auth::id();
+        $partner = $this->getAuthenticatedPartner();
+
+        if (!$partner) {
+            return response()->json(['message' => 'Tài khoản đối tác của bạn chưa được phê duyệt hoặc không tồn tại.'], 403);
+        }
 
         $tour = DB::table('tours')
             ->where('id', $id)
-            ->where('partner_id', $partnerId)
+            ->where('partner_id', $partner->id)
             ->first();
 
         if (!$tour) {
-            return response()->json(['message' => 'Tour không tồn tại hoặc không thuộc quyền của bạn'], 404);
+            return response()->json(['message' => 'Không tìm thấy tour thuộc quyền của bạn.'], 404);
         }
 
+        DB::table('tour_schedules')->where('tour_id', $id)->delete();
         DB::table('tours')->where('id', $id)->delete();
 
-        return response()->json(['message' => 'Xoá tour thành công']);
+        return response()->json(['message' => 'Xóa tour thành công.']);
+    }
+
+    // Lấy bản ghi đối tác tương ứng user hiện tại và đảm bảo đã được duyệt
+    private function getAuthenticatedPartner(): ?object
+    {
+        $userId = Auth::id();
+
+        if (!$userId) {
+            return null;
+        }
+
+        $partner = DB::table('partners')
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$partner || $partner->status !== 'approved') {
+            return null;
+        }
+
+        return $partner;
     }
 }
