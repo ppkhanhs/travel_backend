@@ -87,9 +87,9 @@ class PartnerTourController extends Controller
             'duration' => $request->duration,
             'base_price' => $request->base_price,
             'policy' => $request->policy,
-            'tags' => $request->tags,
-            'media' => $request->media,
-            'itinerary' => $request->itinerary,
+            'tags' => $this->toPostgresArray($request->tags),
+            'media' => $this->encodeJson($request->media),
+            'itinerary' => $this->encodeJson($request->itinerary),
             'status' => 'pending',
             'created_at' => $now,
             'updated_at' => $now,
@@ -156,11 +156,20 @@ class PartnerTourController extends Controller
             'duration',
             'base_price',
             'policy',
-            'tags',
-            'media',
-            'itinerary',
             'status',
         ]);
+
+        if ($request->has('tags')) {
+            $tourData['tags'] = $this->toPostgresArray($request->tags ?? []);
+        }
+
+        if ($request->has('media')) {
+            $tourData['media'] = $this->encodeJson($request->media);
+        }
+
+        if ($request->has('itinerary')) {
+            $tourData['itinerary'] = $this->encodeJson($request->itinerary);
+        }
 
         if (!empty($tourData)) {
             $tourData['updated_at'] = now();
@@ -244,5 +253,35 @@ class PartnerTourController extends Controller
         }
 
         return $partner;
+    }
+
+    // Chuyển mảng PHP sang định dạng text[] của Postgres
+    private function toPostgresArray(?array $items): ?string
+    {
+        if (is_null($items)) {
+            return null;
+        }
+
+        if (empty($items)) {
+            return '{}';
+        }
+
+        $escaped = array_map(function ($item) {
+            $value = (string) $item;
+            $value = str_replace(['\\', '"'], ['\\\\', '\\"'], $value);
+            return '"' . $value . '"';
+        }, $items);
+
+        return '{' . implode(',', $escaped) . '}';
+    }
+
+    // Mã hóa JSON cho các cột jsonb
+    private function encodeJson($value): ?string
+    {
+        if (is_null($value)) {
+            return null;
+        }
+
+        return json_encode($value, JSON_UNESCAPED_UNICODE);
     }
 }
