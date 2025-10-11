@@ -31,4 +31,25 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'brevo' => [
+    'api_key' => env('BREVO_API_KEY'),
+    'sender_email' => env('BREVO_SENDER_EMAIL'),
+    'sender_name' => env('BREVO_SENDER_NAME', env('APP_NAME')),
+],
+
+
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', env('APP_URL') . '/api/auth/social/google/callback'),
+    ],
+
+    'facebook' => [
+        'client_id' => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect' => env('FACEBOOK_REDIRECT_URI', env('APP_URL') . '/api/auth/social/facebook/callback'),
+    ],
+
+    'oauth_redirect' => env('OAUTH_FRONTEND_REDIRECT'),
+
 ];
