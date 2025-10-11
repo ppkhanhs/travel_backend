@@ -127,7 +127,7 @@ class AuthOtpController extends Controller
 
         $channel = $data['channel'];
         $value = trim($data['value']);
-        $otpCode = $data['otp'];
+        $otpCode = trim($data['otp']);
 
         $record = DB::table('user_otps')
             ->where('channel', $channel)
