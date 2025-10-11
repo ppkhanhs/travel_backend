@@ -22,16 +22,20 @@ class SocialAuthController extends Controller
     {
         $this->guardProvider($provider);
 
+        /** @var \Laravel\Socialite\Contracts\Provider|\Laravel\Socialite\Two\AbstractProvider $driver */
+        $driver = Socialite::driver($provider);
+
+        if (method_exists($driver, 'stateless')) {
+            $driver = $driver->stateless();
+        }
+
         if ($request->wantsJson()) {
             return response()->json([
-                'url' => Socialite::driver($provider)
-                    ->stateless()
-                    ->redirect()
-                    ->getTargetUrl(),
+                'url' => $driver->redirect()->getTargetUrl(),
             ]);
         }
 
-        return Socialite::driver($provider)->stateless()->redirect();
+        return $driver->redirect();
     }
 
     // Nhận callback từ provider, liên kết/tạo user và phát hành token
@@ -40,7 +44,14 @@ class SocialAuthController extends Controller
         $this->guardProvider($provider);
 
         try {
-            $socialUser = Socialite::driver($provider)->stateless()->user();
+            /** @var \Laravel\Socialite\Contracts\Provider|\Laravel\Socialite\Two\AbstractProvider $driver */
+            $driver = Socialite::driver($provider);
+
+            if (method_exists($driver, 'stateless')) {
+                $driver = $driver->stateless();
+            }
+
+            $socialUser = $driver->user();
         } catch (\Throwable $e) {
             Log::error('Social login error', ['provider' => $provider, 'error' => $e->getMessage()]);
             throw ValidationException::withMessages([
