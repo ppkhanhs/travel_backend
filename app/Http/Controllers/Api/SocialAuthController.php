@@ -29,6 +29,10 @@ class SocialAuthController extends Controller
             $driver = $driver->stateless();
         }
 
+        if ($provider === 'google' && $driver instanceof \Laravel\Socialite\Two\GoogleProvider) {
+            $driver = $driver->with(['prompt' => 'select_account']);
+        }
+
         if ($request->wantsJson()) {
             return response()->json([
                 'url' => $driver->redirect()->getTargetUrl(),
@@ -49,6 +53,10 @@ class SocialAuthController extends Controller
 
             if (method_exists($driver, 'stateless')) {
                 $driver = $driver->stateless();
+            }
+
+            if ($provider === 'google' && $driver instanceof \Laravel\Socialite\Two\GoogleProvider) {
+                $driver = $driver->with(['prompt' => 'select_account']);
             }
 
             $socialUser = $driver->user();
