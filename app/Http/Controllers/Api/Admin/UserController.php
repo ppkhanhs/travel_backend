@@ -50,7 +50,7 @@ class UserController extends Controller
         }
 
         $data = $request->validate([
-            'status' => ['required', Rule::in(['active', 'inactive', 'suspended'])],
+            'status' => ['required', Rule::in(['active', 'inactive'])],
         ]);
 
         $user = User::findOrFail($id);

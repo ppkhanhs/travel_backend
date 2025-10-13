@@ -94,17 +94,41 @@ class PartnerController extends Controller
         $partner = Partner::with('user')->findOrFail($id);
 
         $data = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'email' => [
+                'sometimes',
+                'required',
+                'email',
+                Rule::unique('users', 'email')->ignore($partner->user_id),
+            ],
+            'phone' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:20',
+                Rule::unique('users', 'phone')->ignore($partner->user_id),
+            ],
             'company_name' => 'sometimes|required|string|max:255',
             'tax_code' => 'sometimes|nullable|string|max:50',
             'address' => 'sometimes|nullable|string|max:255',
             'status' => ['sometimes', Rule::in(['pending', 'approved', 'rejected'])],
         ]);
 
-        $partner->fill($data);
+        DB::transaction(function () use ($data, $partner) {
+            if (isset($data['name']) || isset($data['email']) || array_key_exists('phone', $data)) {
+                $userUpdates = array_intersect_key($data, array_flip(['name', 'email', 'phone']));
+                if (!empty($userUpdates)) {
+                    $partner->user->fill($userUpdates);
+                    $partner->user->save();
+                }
+            }
 
-        if (isset($data['status'])) {
-            $partner->status = $data['status'];
-            if (Schema::hasColumn('users', 'status')) {
+            $partnerUpdates = array_intersect_key($data, array_flip(['company_name', 'tax_code', 'address', 'status']));
+            if (!empty($partnerUpdates)) {
+                $partner->fill($partnerUpdates);
+            }
+
+            if (isset($data['status']) && Schema::hasColumn('users', 'status')) {
                 if ($data['status'] === 'rejected') {
                     $partner->user->status = 'inactive';
                 } elseif ($data['status'] === 'approved') {
@@ -114,9 +138,9 @@ class PartnerController extends Controller
                 }
                 $partner->user->save();
             }
-        }
 
-        $partner->save();
+            $partner->save();
+        });
 
         return response()->json([
             'message' => 'Cập nhật thông tin đối tác thành công.',
