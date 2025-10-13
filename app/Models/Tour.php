@@ -1,24 +1,48 @@
 <?php
-// app/Models/Tour.php
+
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Tour extends Model
 {
+    use HasFactory;
+
     protected $table = 'tours';
 
     protected $fillable = [
-        'partner_id','title','description','destination','duration',
-        'base_price','policy','tags','media','itinerary','status'
+        'partner_id',
+        'title',
+        'description',
+        'destination',
+        'duration',
+        'base_price',
+        'policy',
+        'tags',
+        'media',
+        'itinerary',
+        'status',
     ];
 
     protected $casts = [
         'base_price' => 'decimal:2',
-        'tags'       => 'array',   // Postgres array
-        'media'      => 'array',   // jsonb
-        'itinerary'  => 'array',   // jsonb
+        'tags' => 'array',
+        'media' => 'array',
+        'itinerary' => 'array',
     ];
 
-    public $timestamps = false; // bảng của bạn dùng trigger default now(); nếu muốn dùng Laravel, bật lên và map created_at/updated_at
+    public $timestamps = false;
+
+    public function partner(): BelongsTo
+    {
+        return $this->belongsTo(Partner::class);
+    }
+
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(TourSchedule::class, 'tour_id');
+    }
 }

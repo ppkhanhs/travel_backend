@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardControll
 use App\Http\Controllers\Api\Admin\PartnerController as AdminPartnerController;
 use App\Http\Controllers\Api\Admin\PromotionController as AdminPromotionController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Api\Admin\TourController as AdminTourController;
 
 /*
 |--------------------------------------------------------------------------
@@ -81,6 +82,10 @@ Route::middleware(['auth:sanctum', 'ensure_admin'])->prefix('admin')->group(func
     Route::post('/promotions', [AdminPromotionController::class, 'store']);
     Route::put('/promotions/{id}', [AdminPromotionController::class, 'update']);
     Route::delete('/promotions/{id}', [AdminPromotionController::class, 'destroy']);
+
+    Route::get('/tours', [AdminTourController::class, 'index']);
+    Route::get('/tours/{id}', [AdminTourController::class, 'show']);
+    Route::patch('/tours/{id}/status', [AdminTourController::class, 'updateStatus']);
 
     Route::get('/staff', [AdminAccountController::class, 'index']);
     Route::post('/staff', [AdminAccountController::class, 'store']);
