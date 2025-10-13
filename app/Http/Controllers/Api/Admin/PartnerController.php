@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class PartnerController extends Controller
@@ -39,14 +40,19 @@ class PartnerController extends Controller
         ]);
 
         $partner = DB::transaction(function () use ($data) {
-            $user = User::create([
+            $userAttributes = [
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
                 'password' => Hash::make($data['password']),
                 'role' => 'partner',
-                'status' => $data['status'] === 'rejected' ? 'inactive' : 'active',
-            ]);
+            ];
+
+            if (Schema::hasColumn('users', 'status')) {
+                $userAttributes['status'] = $data['status'] === 'rejected' ? 'inactive' : 'active';
+            }
+
+            $user = User::create($userAttributes);
 
             return Partner::create([
                 'user_id' => $user->id,
@@ -98,12 +104,16 @@ class PartnerController extends Controller
 
         if (isset($data['status'])) {
             $partner->status = $data['status'];
-            if ($data['status'] === 'rejected') {
-                $partner->user->status = 'inactive';
-            } elseif ($data['status'] === 'approved') {
-                $partner->user->status = 'active';
+            if (Schema::hasColumn('users', 'status')) {
+                if ($data['status'] === 'rejected') {
+                    $partner->user->status = 'inactive';
+                } elseif ($data['status'] === 'approved') {
+                    $partner->user->status = 'active';
+                } elseif ($data['status'] === 'pending') {
+                    $partner->user->status = 'inactive';
+                }
+                $partner->user->save();
             }
-            $partner->user->save();
         }
 
         $partner->save();

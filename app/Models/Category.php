@@ -23,6 +23,8 @@ class Category extends Model
         'parent_id',
     ];
 
+    public $timestamps = false;
+
     protected static function booted(): void
     {
         static::creating(function (Category $category) {

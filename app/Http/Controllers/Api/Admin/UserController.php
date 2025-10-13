@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -14,7 +15,10 @@ class UserController extends Controller
     {
         $query = User::query()
             ->when($request->filled('role'), fn ($q) => $q->where('role', $request->role))
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+            ->when(
+                $request->filled('status') && Schema::hasColumn('users', 'status'),
+                fn ($q) => $q->where('status', $request->status)
+            )
             ->when($request->filled('search'), function ($q) use ($request) {
                 $term = '%' . $request->search . '%';
                 $q->where(function ($inner) use ($term) {
@@ -39,6 +43,12 @@ class UserController extends Controller
 
     public function updateStatus(Request $request, string $id): JsonResponse
     {
+        if (!Schema::hasColumn('users', 'status')) {
+            return response()->json([
+                'message' => 'Hệ thống chưa hỗ trợ cập nhật trạng thái người dùng.',
+            ], 422);
+        }
+
         $data = $request->validate([
             'status' => ['required', Rule::in(['active', 'inactive', 'suspended'])],
         ]);

@@ -27,6 +27,8 @@ class Partner extends Model
         'status',
     ];
 
+    public $timestamps = false;
+
     protected static function booted(): void
     {
         static::creating(function (Partner $partner) {

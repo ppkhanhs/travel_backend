@@ -27,6 +27,8 @@ class Booking extends Model
         'payment_status',
     ];
 
+    public $timestamps = false;
+
     protected $casts = [
         'booking_date' => 'datetime',
         'total_price' => 'decimal:2',

@@ -28,7 +28,7 @@ class DashboardController extends Controller
         $activeTours = Tour::where('status', 'approved')->count();
 
         $totalBookings = Booking::count();
-        $bookingsThisMonth = Booking::where('created_at', '>=', $monthAgo)->count();
+        $bookingsThisMonth = Booking::where('booking_date', '>=', $monthAgo)->count();
 
         $topPartners = Partner::select('partners.id', 'partners.company_name')
             ->withCount(['tours'])

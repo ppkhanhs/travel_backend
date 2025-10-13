@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class AdminAccountController extends Controller
@@ -30,14 +31,19 @@ class AdminAccountController extends Controller
             'password' => 'required|string|min:6|confirmed',
         ]);
 
-        $admin = User::create([
+        $attributes = [
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
             'password' => Hash::make($data['password']),
             'role' => 'admin',
-            'status' => 'active',
-        ]);
+        ];
+
+        if (Schema::hasColumn('users', 'status')) {
+            $attributes['status'] = 'active';
+        }
+
+        $admin = User::create($attributes);
 
         return response()->json([
             'message' => 'Tạo tài khoản quản trị thành công.',
@@ -72,6 +78,10 @@ class AdminAccountController extends Controller
             $data['password'] = Hash::make($data['password']);
         } else {
             unset($data['password']);
+        }
+
+        if (!Schema::hasColumn('users', 'status')) {
+            unset($data['status']);
         }
 
         $admin->update($data);
