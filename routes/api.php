@@ -2,6 +2,16 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AuthOtpController;
+use App\Http\Controllers\Api\SocialAuthController;
+use App\Http\Controllers\Api\PartnerTourController;
+use App\Http\Controllers\Api\Admin\AdminAccountController;
+use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Api\Admin\PartnerController as AdminPartnerController;
+use App\Http\Controllers\Api\Admin\PromotionController as AdminPromotionController;
+use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,10 +27,6 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\AuthOtpController;
-use App\Http\Controllers\Api\SocialAuthController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -46,12 +52,38 @@ Route::prefix('auth/social')->controller(SocialAuthController::class)->group(fun
     Route::get('{provider}/callback', 'callback');
 });
 
-use App\Http\Controllers\Api\PartnerTourController;
-
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/partner/tours', [PartnerTourController::class, 'index']);
     Route::get('/partner/tours/{id}', [PartnerTourController::class, 'show']);
     Route::post('/partner/tours', [PartnerTourController::class, 'store']);
     Route::put('/partner/tours/{id}', [PartnerTourController::class, 'update']);
     Route::delete('/partner/tours/{id}', [PartnerTourController::class, 'destroy']);
+});
+
+Route::middleware(['auth:sanctum', 'ensure_admin'])->prefix('admin')->group(function () {
+    Route::get('/dashboard', AdminDashboardController::class);
+
+    Route::get('/users', [AdminUserController::class, 'index']);
+    Route::get('/users/{id}', [AdminUserController::class, 'show']);
+    Route::patch('/users/{id}/status', [AdminUserController::class, 'updateStatus']);
+
+    Route::get('/partners', [AdminPartnerController::class, 'index']);
+    Route::post('/partners', [AdminPartnerController::class, 'store']);
+    Route::get('/partners/{id}', [AdminPartnerController::class, 'show']);
+    Route::patch('/partners/{id}', [AdminPartnerController::class, 'update']);
+
+    Route::get('/categories', [AdminCategoryController::class, 'index']);
+    Route::post('/categories', [AdminCategoryController::class, 'store']);
+    Route::put('/categories/{id}', [AdminCategoryController::class, 'update']);
+    Route::delete('/categories/{id}', [AdminCategoryController::class, 'destroy']);
+
+    Route::get('/promotions', [AdminPromotionController::class, 'index']);
+    Route::post('/promotions', [AdminPromotionController::class, 'store']);
+    Route::put('/promotions/{id}', [AdminPromotionController::class, 'update']);
+    Route::delete('/promotions/{id}', [AdminPromotionController::class, 'destroy']);
+
+    Route::get('/staff', [AdminAccountController::class, 'index']);
+    Route::post('/staff', [AdminAccountController::class, 'store']);
+    Route::put('/staff/{id}', [AdminAccountController::class, 'update']);
+    Route::delete('/staff/{id}', [AdminAccountController::class, 'destroy']);
 });
