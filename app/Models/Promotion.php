@@ -33,6 +33,8 @@ class Promotion extends Model
         'is_active' => 'boolean',
     ];
 
+    public $timestamps = false;
+
     protected static function booted(): void
     {
         static::creating(function (Promotion $promotion) {

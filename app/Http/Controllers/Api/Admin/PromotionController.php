@@ -12,7 +12,8 @@ class PromotionController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $promotions = Promotion::orderByDesc('created_at')
+        $promotions = Promotion::orderByDesc('valid_from')
+            ->orderByDesc('valid_to')
             ->paginate($request->integer('per_page', 20));
 
         return response()->json($promotions);
