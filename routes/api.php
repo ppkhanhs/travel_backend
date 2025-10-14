@@ -4,7 +4,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AuthOtpController;
+use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\PromotionController;
 use App\Http\Controllers\Api\SocialAuthController;
+use App\Http\Controllers\Api\TourController;
 use App\Http\Controllers\Api\PartnerTourController;
 use App\Http\Controllers\Api\Admin\AdminAccountController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
@@ -52,6 +55,14 @@ Route::prefix('auth/social')->controller(SocialAuthController::class)->group(fun
     Route::get('{provider}/redirect', 'redirect');
     Route::get('{provider}/callback', 'callback');
 });
+
+Route::get('/home', [HomeController::class, 'index']);
+Route::get('/home/highlight-categories', [HomeController::class, 'highlightCategories']);
+Route::get('/promotions/active', [PromotionController::class, 'active']);
+Route::get('/tours/trending', [TourController::class, 'trending']);
+Route::get('/search/suggestions', [TourController::class, 'suggestions']);
+Route::get('/tours', [TourController::class, 'index']);
+Route::get('/tours/{id}', [TourController::class, 'show']);
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/partner/tours', [PartnerTourController::class, 'index']);

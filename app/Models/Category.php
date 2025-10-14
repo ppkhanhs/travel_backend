@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -32,6 +33,11 @@ class Category extends Model
                 $category->id = (string) Str::uuid();
             }
         });
+    }
+
+    public function tours(): BelongsToMany
+    {
+        return $this->belongsToMany(Tour::class, 'tour_categories');
     }
 
     public function parent(): BelongsTo

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -42,5 +43,20 @@ class Promotion extends Model
                 $promotion->id = (string) Str::uuid();
             }
         });
+    }
+
+    public function scopeActive($query)
+    {
+        $today = Carbon::today()->toDateString();
+
+        return $query->where('is_active', true)
+            ->where(function ($q) use ($today) {
+                $q->whereNull('valid_from')
+                    ->orWhere('valid_from', '<=', $today);
+            })
+            ->where(function ($q) use ($today) {
+                $q->whereNull('valid_to')
+                    ->orWhere('valid_to', '>=', $today);
+            });
     }
 }
