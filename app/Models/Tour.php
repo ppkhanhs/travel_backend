@@ -35,6 +35,10 @@ class Tour extends Model
         'itinerary' => 'array',
     ];
 
+    public $incrementing = false;
+
+    protected $keyType = 'string';
+
     public $timestamps = false;
 
     public function partner(): BelongsTo
