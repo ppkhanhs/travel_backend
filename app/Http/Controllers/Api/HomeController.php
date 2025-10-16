@@ -70,7 +70,7 @@ class HomeController extends Controller
         return Tour::approved()
             ->with(['partner.user', 'categories', 'schedules' => function ($query) {
                 $query->orderBy('start_date');
-            }])
+            }]) 
             ->leftJoinSub($bookingStats, 'booking_stats', function ($join) {
                 $join->on('booking_stats.tour_id', '=', 'tours.id');
             })

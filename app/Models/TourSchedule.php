@@ -24,7 +24,7 @@ class TourSchedule extends Model
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
-        'season_price' => 'decimal:2',
+        'season_price' => 'float',
     ];
 
     public $timestamps = false;

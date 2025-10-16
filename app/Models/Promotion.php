@@ -32,6 +32,7 @@ class Promotion extends Model
         'valid_from' => 'date',
         'valid_to' => 'date',
         'is_active' => 'boolean',
+        'value' => 'float',
     ];
 
     public $timestamps = false;

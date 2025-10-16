@@ -29,7 +29,7 @@ class Tour extends Model
     ];
 
     protected $casts = [
-        'base_price' => 'decimal:2',
+        'base_price' => 'float',
         'tags' => 'array',
         'media' => 'array',
         'itinerary' => 'array',

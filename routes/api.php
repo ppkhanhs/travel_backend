@@ -51,6 +51,7 @@ Route::prefix('auth')->controller(AuthOtpController::class)->group(function () {
     Route::post('/set-password', 'setPassword');
 });
 
+// Social authentication routes
 Route::prefix('auth/social')->controller(SocialAuthController::class)->group(function () {
     Route::get('{provider}/redirect', 'redirect');
     Route::get('{provider}/callback', 'callback');
@@ -64,6 +65,7 @@ Route::get('/search/suggestions', [TourController::class, 'suggestions']);
 Route::get('/tours', [TourController::class, 'index']);
 Route::get('/tours/{id}', [TourController::class, 'show']);
 
+// Partner routes
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/partner/tours', [PartnerTourController::class, 'index']);
     Route::get('/partner/tours/{id}', [PartnerTourController::class, 'show']);
@@ -72,6 +74,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/partner/tours/{id}', [PartnerTourController::class, 'destroy']);
 });
 
+// Admin routes
 Route::middleware(['auth:sanctum', 'ensure_admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', AdminDashboardController::class);
 
