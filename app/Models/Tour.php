@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Tour extends Model
 {
@@ -56,8 +57,24 @@ class Tour extends Model
         return $this->hasMany(TourSchedule::class, 'tour_id');
     }
 
+    public function packages(): HasMany
+    {
+        return $this->hasMany(TourPackage::class, 'tour_id');
+    }
+
+    public function bookings(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Booking::class,
+            TourSchedule::class,
+            'tour_id',
+            'tour_schedule_id'
+        );
+    }
+
     public function scopeApproved($query)
     {
         return $query->where('status', 'approved');
     }
 }
+

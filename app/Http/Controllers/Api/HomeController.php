@@ -68,9 +68,16 @@ class HomeController extends Controller
             ->groupBy('tour_schedules.tour_id');
 
         return Tour::approved()
-            ->with(['partner.user', 'categories', 'schedules' => function ($query) {
-                $query->orderBy('start_date');
-            }]) 
+            ->with([
+                'partner.user',
+                'categories',
+                'schedules' => function ($query) {
+                    $query->orderBy('start_date');
+                },
+                'packages' => function ($query) {
+                    $query->where('is_active', true)->orderBy('adult_price');
+                },
+            ]) 
             ->leftJoinSub($bookingStats, 'booking_stats', function ($join) {
                 $join->on('booking_stats.tour_id', '=', 'tours.id');
             })

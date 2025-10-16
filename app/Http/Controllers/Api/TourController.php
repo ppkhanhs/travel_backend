@@ -13,9 +13,16 @@ class TourController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Tour::with(['partner.user', 'categories', 'schedules' => function ($q) {
-            $q->orderBy('start_date');
-        }]);
+        $query = Tour::with([
+            'partner.user',
+            'categories',
+            'schedules' => function ($q) {
+                $q->orderBy('start_date');
+            },
+            'packages' => function ($q) {
+                $q->where('is_active', true)->orderBy('adult_price');
+            },
+        ]);
 
         if (!$request->filled('status') || $request->status === 'approved') {
             $query->where('status', 'approved');
@@ -132,6 +139,9 @@ class TourController extends Controller
                 'schedules' => function ($q) {
                     $q->orderBy('start_date');
                 },
+                'packages' => function ($q) {
+                    $q->where('is_active', true)->orderBy('adult_price');
+                },
             ])
             ->findOrFail($id);
 
@@ -155,7 +165,13 @@ class TourController extends Controller
             ->groupBy('tour_schedules.tour_id');
 
         $tours = Tour::approved()
-            ->with(['partner.user', 'categories'])
+            ->with([
+                'partner.user',
+                'categories',
+                'packages' => function ($q) {
+                    $q->where('is_active', true)->orderBy('adult_price');
+                },
+            ])
             ->leftJoinSub($bookingStats, 'booking_stats', function ($join) {
                 $join->on('booking_stats.tour_id', '=', 'tours.id');
             })
@@ -195,3 +211,5 @@ class TourController extends Controller
         return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 }
+
+
