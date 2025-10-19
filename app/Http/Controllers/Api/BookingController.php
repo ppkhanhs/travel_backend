@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\BookingPassenger;
 use App\Models\Payment;
@@ -14,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\ValidationException;
 
 class BookingController extends Controller
@@ -25,24 +27,36 @@ class BookingController extends Controller
         $this->sepay = $sepay;
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): AnonymousResourceCollection
     {
-        $bookings = Booking::with(['tourSchedule.tour', 'package', 'passengers', 'payments'])
+        $bookings = Booking::with([
+                'tourSchedule.tour.partner',
+                'package',
+                'passengers',
+                'payments',
+                'review',
+            ])
             ->where('user_id', $request->user()->id)
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
             ->orderByDesc('booking_date')
             ->paginate($request->integer('per_page', 15));
 
-        return response()->json($bookings);
+        return BookingResource::collection($bookings);
     }
 
-    public function show(Request $request, string $id): JsonResponse
+    public function show(Request $request, string $id): BookingResource
     {
-        $booking = Booking::with(['tourSchedule.tour', 'package', 'passengers', 'payments'])
+        $booking = Booking::with([
+                'tourSchedule.tour.partner',
+                'package',
+                'passengers',
+                'payments',
+                'review',
+            ])
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
 
-        return response()->json($booking);
+        return new BookingResource($booking);
     }
 
     public function store(Request $request): JsonResponse
@@ -169,11 +183,17 @@ class BookingController extends Controller
             return $booking;
         });
 
-        $booking->load(['tourSchedule.tour', 'package', 'passengers', 'payments']);
+        $booking->load([
+            'tourSchedule.tour.partner',
+            'package',
+            'passengers',
+            'payments',
+            'review',
+        ]);
 
         return response()->json([
             'message' => 'Booking created successfully. Await partner confirmation.',
-            'booking' => $booking,
+            'booking' => new BookingResource($booking),
             'payment_url' => $paymentUrl,
             'payment_id' => $paymentId,
         ], 201);

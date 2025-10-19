@@ -107,22 +107,32 @@ class TourController extends Controller
             }
         }
 
+        $query->leftJoinSub($this->reviewStatsSubquery(), 'review_stats', function ($join) {
+            $join->on('review_stats.tour_id', '=', 'tours.id');
+        });
+
+        $query->select(
+            'tours.*',
+            DB::raw('COALESCE(review_stats.rating_average, 0) as rating_average'),
+            DB::raw('COALESCE(review_stats.rating_count, 0) as rating_count')
+        );
+
         if ($request->filled('sort')) {
             switch ($request->sort) {
                 case 'price_asc':
-                    $query->orderBy('base_price');
+                    $query->orderBy('tours.base_price');
                     break;
                 case 'price_desc':
-                    $query->orderByDesc('base_price');
+                    $query->orderByDesc('tours.base_price');
                     break;
                 case 'newest':
-                    $query->orderByDesc('created_at');
+                    $query->orderByDesc('tours.created_at');
                     break;
                 default:
-                    $query->orderBy('title');
+                    $query->orderBy('tours.title');
             }
         } else {
-            $query->orderBy('title');
+            $query->orderBy('tours.title');
         }
 
         $tours = $query->paginate($request->integer('per_page', 12));
@@ -145,6 +155,13 @@ class TourController extends Controller
             ])
             ->findOrFail($id);
 
+        $stats = $this->reviewStatsSubquery()
+            ->where('tour_schedules.tour_id', $tour->id)
+            ->first();
+
+        $tour->setAttribute('rating_average', (float) ($stats->rating_average ?? 0));
+        $tour->setAttribute('rating_count', (int) ($stats->rating_count ?? 0));
+
         return response()->json($tour);
     }
 
@@ -164,6 +181,8 @@ class TourController extends Controller
             })
             ->groupBy('tour_schedules.tour_id');
 
+        $reviewStats = $this->reviewStatsSubquery();
+
         $tours = Tour::approved()
             ->with([
                 'partner.user',
@@ -175,7 +194,15 @@ class TourController extends Controller
             ->leftJoinSub($bookingStats, 'booking_stats', function ($join) {
                 $join->on('booking_stats.tour_id', '=', 'tours.id');
             })
-            ->select('tours.*', DB::raw('COALESCE(booking_stats.bookings_count, 0) as bookings_count'))
+            ->leftJoinSub($reviewStats, 'review_stats', function ($join) {
+                $join->on('review_stats.tour_id', '=', 'tours.id');
+            })
+            ->select(
+                'tours.*',
+                DB::raw('COALESCE(booking_stats.bookings_count, 0) as bookings_count'),
+                DB::raw('COALESCE(review_stats.rating_average, 0) as rating_average'),
+                DB::raw('COALESCE(review_stats.rating_count, 0) as rating_count')
+            )
             ->orderByDesc('bookings_count')
             ->orderByDesc('tours.created_at')
             ->limit($limit)
@@ -209,6 +236,19 @@ class TourController extends Controller
     private function escapeLike(string $value): string
     {
         return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+    }
+
+    private function reviewStatsSubquery()
+    {
+        return DB::table('reviews')
+            ->join('bookings', 'reviews.booking_id', '=', 'bookings.id')
+            ->join('tour_schedules', 'bookings.tour_schedule_id', '=', 'tour_schedules.id')
+            ->select(
+                'tour_schedules.tour_id',
+                DB::raw('AVG(reviews.rating)::float as rating_average'),
+                DB::raw('COUNT(reviews.id) as rating_count')
+            )
+            ->groupBy('tour_schedules.tour_id');
     }
 }
 

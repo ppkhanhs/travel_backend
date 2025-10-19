@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\TourController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\PartnerTourController;
 use App\Http\Controllers\Api\Partner\BookingController as PartnerBookingController;
 use App\Http\Controllers\Api\Admin\AdminAccountController;
@@ -47,6 +48,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
     Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
+
+    Route::post('/reviews', [ReviewController::class, 'store']);
+    Route::put('/reviews/{id}', [ReviewController::class, 'update']);
+    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
 });
 
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
@@ -76,6 +81,7 @@ Route::get('/tours/trending', [TourController::class, 'trending']);
 Route::get('/search/suggestions', [TourController::class, 'suggestions']);
 Route::get('/tours', [TourController::class, 'index']);
 Route::get('/tours/{id}', [TourController::class, 'show']);
+Route::get('/tours/{id}/reviews', [ReviewController::class, 'index']);
 
 // Partner routes
 Route::middleware(['auth:sanctum'])->group(function () {

@@ -67,6 +67,16 @@ class HomeController extends Controller
             })
             ->groupBy('tour_schedules.tour_id');
 
+        $reviewStats = DB::table('reviews')
+            ->join('bookings', 'reviews.booking_id', '=', 'bookings.id')
+            ->join('tour_schedules', 'bookings.tour_schedule_id', '=', 'tour_schedules.id')
+            ->select(
+                'tour_schedules.tour_id',
+                DB::raw('AVG(reviews.rating)::float as rating_average'),
+                DB::raw('COUNT(reviews.id) as rating_count')
+            )
+            ->groupBy('tour_schedules.tour_id');
+
         return Tour::approved()
             ->with([
                 'partner.user',
@@ -81,7 +91,15 @@ class HomeController extends Controller
             ->leftJoinSub($bookingStats, 'booking_stats', function ($join) {
                 $join->on('booking_stats.tour_id', '=', 'tours.id');
             })
-            ->select('tours.*', DB::raw('COALESCE(booking_stats.bookings_count, 0) as bookings_count'))
+            ->leftJoinSub($reviewStats, 'review_stats', function ($join) {
+                $join->on('review_stats.tour_id', '=', 'tours.id');
+            })
+            ->select(
+                'tours.*',
+                DB::raw('COALESCE(booking_stats.bookings_count, 0) as bookings_count'),
+                DB::raw('COALESCE(review_stats.rating_average, 0) as rating_average'),
+                DB::raw('COALESCE(review_stats.rating_count, 0) as rating_count')
+            )
             ->orderByDesc('bookings_count')
             ->orderByDesc('tours.created_at')
             ->limit($limit)
