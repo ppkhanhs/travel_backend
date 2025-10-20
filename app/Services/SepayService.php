@@ -17,10 +17,10 @@ class SepayService
 
     public function __construct()
     {
-        $this->merchantCode = config('sepay.merchant_code', '');
-        $this->apiKey = config('sepay.api_key', '');
-        $this->checksumKey = config('sepay.checksum_key', '');
-        $this->paymentUrl = rtrim(config('sepay.payment_url', ''), '/');
+        $this->merchantCode = (string) (config('sepay.merchant_code') ?? '');
+        $this->apiKey = (string) (config('sepay.api_key') ?? '');
+        $this->checksumKey = (string) (config('sepay.checksum_key') ?? '');
+        $this->paymentUrl = rtrim((string) (config('sepay.payment_url') ?? ''), '/');
     }
 
     public function isEnabled(): bool
@@ -85,4 +85,3 @@ class SepayService
         Log::channel(config('sepay.log_channel', 'stack'))->info('[Sepay] ' . $message, $context);
     }
 }
-
