@@ -76,5 +76,9 @@ class Tour extends Model
     {
         return $query->where('status', 'approved');
     }
-}
 
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class, 'tour_id');
+    }
+}
