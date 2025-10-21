@@ -8,7 +8,8 @@ return [
     'return_url' => env('SEPAY_RETURN_URL'),
     'log_channel' => env('SEPAY_LOG_CHANNEL', 'stack'),
     'webhook_token' => env('SEPAY_WEBHOOK_TOKEN'),
-    'pattern' => env('SEPAY_MATCH_PATTERN', 'SE'),
+    'pattern' => env('SEPAY_MATCH_PATTERN', 'BOOKING-'),
     'account' => env('SEPAY_ACCOUNT'),
     'bank' => env('SEPAY_BANK'),
+    'qr_url' => env('SEPAY_QR_URL', 'https://qr.sepay.vn/img'),
 ];

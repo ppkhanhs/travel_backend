@@ -11,6 +11,7 @@ class BookingResource extends JsonResource
         $schedule = $this->whenLoaded('tourSchedule');
         $tour = $schedule?->tour;
         $package = $this->whenLoaded('package');
+        $payments = $this->whenLoaded('payments');
 
         return [
             'id' => $this->id,
@@ -55,7 +56,36 @@ class BookingResource extends JsonResource
                 ] : null;
             }),
             'can_cancel' => in_array($this->status, ['pending', 'confirmed'], true),
+            'payment_qr_url' => $this->generateSepayQrUrl($payments),
         ];
     }
-}
 
+    private function generateSepayQrUrl($payments): ?string
+    {
+        if (!$payments || !$payments->contains(fn ($payment) => $payment->method === 'sepay')) {
+            return null;
+        }
+
+        $account = config('sepay.account');
+        $bank = config('sepay.bank');
+        if (!$account || !$bank) {
+            return null;
+        }
+
+        $baseUrl = rtrim(config('sepay.qr_url', 'https://qr.sepay.vn/img'), '/');
+        $amount = (int) round($this->total_price ?? 0);
+        $description = sprintf('BOOKING-%s', $this->id);
+
+        return sprintf(
+            '%s?%s',
+            $baseUrl,
+            http_build_query([
+                'acc' => $account,
+                'bank' => $bank,
+                'amount' => $amount,
+                'des' => $description,
+                'template' => 'compact',
+            ])
+        );
+    }
+}

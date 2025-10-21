@@ -83,7 +83,7 @@ class BookingController extends Controller
         $data['children'] = $data['children'] ?? 0;
         $totalRequested = $data['adults'] + $data['children'];
 
-        if ($data['payment_method'] === 'sepay' && !$this->sepay->isEnabled()) {
+        if ($data['payment_method'] === 'sepay' && !$this->sepay->isEnabled() && !$this->hasSepayQrConfig()) {
             throw ValidationException::withMessages([
                 'payment_method' => ['Sepay has not been configured. Please choose offline payment or contact support.'],
             ]);
@@ -102,6 +102,7 @@ class BookingController extends Controller
         }
 
         $paymentUrl = null;
+        $paymentQrUrl = null;
         $paymentId = null;
 
         $booking = DB::transaction(function () use ($request, $data, $totalRequested, &$paymentUrl, &$paymentId) {
@@ -177,7 +178,13 @@ class BookingController extends Controller
             if ($data['payment_method'] === 'sepay') {
                 $booking->loadMissing('user');
                 $notifyUrl = route('payments.sepay.webhook');
-                $paymentUrl = $this->sepay->createPaymentLink($payment, $booking, $notifyUrl, config('sepay.return_url'));
+
+                if ($this->sepay->isEnabled()) {
+                    $paymentUrl = $this->sepay->createPaymentLink($payment, $booking, $notifyUrl, config('sepay.return_url'));
+                } elseif ($this->hasSepayQrConfig()) {
+                    $paymentQrUrl = $this->buildSepayQrUrl($booking, $payment);
+                    $paymentUrl = $paymentQrUrl;
+                }
             }
 
             return $booking;
@@ -195,6 +202,7 @@ class BookingController extends Controller
             'message' => 'Booking created successfully. Await partner confirmation.',
             'booking' => new BookingResource($booking),
             'payment_url' => $paymentUrl,
+            'payment_qr_url' => $paymentQrUrl,
             'payment_id' => $paymentId,
         ], 201);
     }
@@ -227,5 +235,34 @@ class BookingController extends Controller
         });
 
         return response()->json(['message' => 'Booking cancelled successfully.']);
+    }
+
+    private function hasSepayQrConfig(): bool
+    {
+        return !empty(config('sepay.account')) && !empty(config('sepay.bank'));
+    }
+
+    private function buildSepayQrUrl(Booking $booking, Payment $payment): ?string
+    {
+        $account = config('sepay.account');
+        $bank = config('sepay.bank');
+        $baseUrl = rtrim(config('sepay.qr_url', 'https://qr.sepay.vn/img'), '/');
+
+        if (!$account || !$bank) {
+            return null;
+        }
+
+        $amount = (int) round($payment->amount ?? $booking->total_price ?? 0);
+        $description = sprintf('BOOKING-%s', $booking->id);
+
+        $query = http_build_query([
+            'acc' => $account,
+            'bank' => $bank,
+            'amount' => $amount,
+            'des' => $description,
+            'template' => 'compact',
+        ]);
+
+        return sprintf('%s?%s', $baseUrl, $query);
     }
 }
