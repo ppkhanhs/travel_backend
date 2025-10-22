@@ -16,25 +16,17 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy composer manifests and install dependencies
-COPY composer.json composer.lock ./
-
-ENV COMPOSER_ALLOW_SUPERUSER=1
-ENV COMPOSER_MEMORY_LIMIT=-1
-
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
-
-# Copy application source
+# Copy entire application source
 COPY . .
 
-# Run framework discovery scripts now that source is present
-RUN php artisan package:discover --ansi || true
+# Install Laravel dependencies
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 
 # Ensure proper permissions for writable directories
-RUN chown -R www-data:www-data storage bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Expose default port
+# Expose HTTP port
 EXPOSE 8000
 
-# Start Laravel using PHP built-in server bound to Render's port
-CMD ["sh", "-c", "php -d variables_order=EGPCS -S 0.0.0.0:${PORT:-8000} -t public public/index.php"]
+# Run Laravel using artisan serve
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
