@@ -1,6 +1,6 @@
-FROM php:8.2-fpm
+﻿FROM php:8.2-fpm
 
-# Cài các extension Laravel cần
+# Install required extensions
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     libzip-dev \
@@ -10,23 +10,28 @@ RUN apt-get update && apt-get install -y \
     curl \
     && docker-php-ext-install pdo pdo_pgsql zip
 
-# Cài Composer
+# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Tạo thư mục dự án
+# Set working directory
 WORKDIR /var/www/html
 
-# Copy toàn bộ mã nguồn
+# Copy composer manifests and install dependencies
+COPY composer.json composer.lock ./
+
+ENV COMPOSER_ALLOW_SUPERUSER=1
+ENV COMPOSER_MEMORY_LIMIT=-1
+
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+# Copy application source
 COPY . .
 
-# Cài đặt Laravel
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader
+# Ensure proper permissions for writable directories
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Set quyền
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
-# Khai báo cổng HTTP để Render biết
+# Expose port used by Laravel
 EXPOSE 8000
 
-# Chạy Laravel bằng built-in server
+# Start Laravel application
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
