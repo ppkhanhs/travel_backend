@@ -19,7 +19,16 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://trip-curate.vercel.app'],
+'allowed_origins' => [
+    'https://trip-curate.vercel.app',
+    'https://travel-backend-heov.onrender.com',
+    'http://localhost',
+    'http://127.0.0.1',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+],
 
     'allowed_origins_patterns' => [],
 
@@ -29,6 +38,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+'supports_credentials' => true,
 
 ];
