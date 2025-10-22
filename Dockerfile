@@ -22,10 +22,13 @@ COPY composer.json composer.lock ./
 ENV COMPOSER_ALLOW_SUPERUSER=1
 ENV COMPOSER_MEMORY_LIMIT=-1
 
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
 # Copy application source
 COPY . .
+
+# Run framework discovery scripts now that source is present
+RUN php artisan package:discover --ansi || true
 
 # Ensure proper permissions for writable directories
 RUN chown -R www-data:www-data storage bootstrap/cache
