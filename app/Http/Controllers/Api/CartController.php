@@ -115,20 +115,48 @@ class CartController extends Controller
             'tour_id' => [$isUpdate ? 'sometimes' : 'required', 'uuid', 'exists:tours,id'],
             'schedule_id' => ['nullable', 'uuid', 'exists:tour_schedules,id'],
             'package_id' => ['nullable', 'uuid', 'exists:tour_packages,id'],
-            'adults' => ['required', 'integer', 'min:0'],
+            'adults' => ['nullable', 'integer', 'min:0'],
             'children' => ['nullable', 'integer', 'min:0'],
+            'adult_quantity' => ['nullable', 'integer', 'min:0'],
+            'child_quantity' => ['nullable', 'integer', 'min:0'],
         ];
 
         $data = $request->validate($rules);
-        $data['children'] = $data['children'] ?? 0;
 
-        if ($data['adults'] === 0 && $data['children'] === 0) {
+        $adults = $data['adults']
+            ?? $data['adult_quantity']
+            ?? $request->input('adultCount')
+            ?? $request->input('adult_count')
+            ?? ($isUpdate ? null : 0);
+
+        $children = $data['children']
+            ?? $data['child_quantity']
+            ?? $request->input('childCount')
+            ?? $request->input('child_count')
+            ?? 0;
+
+        if (!$isUpdate && is_null($adults)) {
             throw ValidationException::withMessages([
-                'adults' => ['Số lượng vé phải lớn hơn 0.'],
+                'adults' => ['Vui l�ng cung c?p s? lu?ng ngu?i l?n.'],
             ]);
         }
 
-        return $data;
+        $adults = max(0, (int) $adults);
+        $children = max(0, (int) $children);
+
+        if ($adults === 0 && $children === 0) {
+            throw ValidationException::withMessages([
+                'adults' => ['S? lu?ng v� ph?i l?n hon 0.'],
+            ]);
+        }
+
+        return [
+            'tour_id' => $data['tour_id'] ?? $request->input('tour_id'),
+            'schedule_id' => $data['schedule_id'] ?? $request->input('schedule_id'),
+            'package_id' => $data['package_id'] ?? $request->input('package_id'),
+            'adults' => $adults,
+            'children' => $children,
+        ];
     }
 
     private function resolveTourReferences(array $data): array
@@ -144,7 +172,7 @@ class CartController extends Controller
 
             if (!$schedule) {
                 throw ValidationException::withMessages([
-                    'schedule_id' => ['Lịch khởi hành không thuộc tour được chọn.'],
+                    'schedule_id' => ['L?ch kh?i h�nh kh�ng thu?c tour du?c ch?n.'],
                 ]);
             }
         }
@@ -157,7 +185,7 @@ class CartController extends Controller
 
             if (!$package) {
                 throw ValidationException::withMessages([
-                    'package_id' => ['Gói dịch vụ không thuộc tour được chọn.'],
+                    'package_id' => ['G�i d?ch v? kh�ng thu?c tour du?c ch?n.'],
                 ]);
             }
         }
