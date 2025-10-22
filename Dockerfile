@@ -33,8 +33,8 @@ RUN php artisan package:discover --ansi || true
 # Ensure proper permissions for writable directories
 RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Expose port used by Laravel
+# Expose default port
 EXPOSE 8000
 
-# Start Laravel application using the port provided by the platform
-CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
+# Start Laravel using PHP built-in server bound to Render's port
+CMD ["sh", "-c", "php -d variables_order=EGPCS -S 0.0.0.0:${PORT:-8000} -t public public/index.php"]
