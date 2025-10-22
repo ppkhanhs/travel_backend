@@ -8,9 +8,10 @@ class CartResource extends JsonResource
 {
     public function toArray($request): array
     {
-        $items = CartItemResource::collection($this->whenLoaded('items'));
+        $itemsResource = CartItemResource::collection($this->whenLoaded('items'));
+        $items = $itemsResource->toArray($request);
 
-        $totals = $items->reduce(function ($carry, $item) {
+        $totals = collect($items)->reduce(function ($carry, $item) {
             $pricing = $item['pricing'] ?? [];
             return [
                 'adult_quantity' => $carry['adult_quantity'] + ($item['adult_quantity'] ?? 0),
@@ -31,4 +32,3 @@ class CartResource extends JsonResource
         ];
     }
 }
-
