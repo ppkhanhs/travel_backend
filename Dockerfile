@@ -36,5 +36,5 @@ RUN chown -R www-data:www-data storage bootstrap/cache
 # Expose port used by Laravel
 EXPOSE 8000
 
-# Start Laravel application
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Start Laravel application using the port provided by the platform
+CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
