@@ -253,7 +253,8 @@ class BookingController extends Controller
         }
 
         $amount = (int) round($payment->amount ?? $booking->total_price ?? 0);
-        $description = sprintf('BOOKING-%s', $booking->id);
+        $pattern = (string) config('sepay.pattern', 'BOOKING-');
+        $description = sprintf('%s%s', $pattern, $booking->id);
 
         $query = http_build_query([
             'acc' => $account,

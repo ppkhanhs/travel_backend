@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -51,6 +53,19 @@ class User extends Authenticatable
 
     protected $keyType = 'string';      // id là string (UUID)
     public $incrementing = false;
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if (empty($user->id)) {
+                $user->id = (string) Str::uuid();
+            }
+
+            if (Schema::hasColumn($user->getTable(), 'status') && empty($user->status)) {
+                $user->status = 'active';
+            }
+        });
+    }
 
     public function socialAccounts(): HasMany
     {
