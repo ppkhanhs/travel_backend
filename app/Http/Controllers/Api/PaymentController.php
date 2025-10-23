@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
 use App\Models\Payment;
 use App\Services\SepayService;
 use Illuminate\Http\JsonResponse;
@@ -100,6 +101,37 @@ class PaymentController extends Controller
             'status' => $status,
             'payment_id' => $payment?->id,
             'booking_id' => $payment?->booking_id,
+        ]);
+    }
+
+    public function status(Request $request, string $bookingId): JsonResponse
+    {
+        $booking = Booking::with(['payments' => function ($query) {
+            $query->latest();
+        }])->where('user_id', $request->user()->id)->findOrFail($bookingId);
+
+        $latestPayment = $booking->payments->first();
+
+        $status = $booking->payment_status;
+        $message = match ($status) {
+            'paid' => 'Thanh toán thành công.',
+            'pending' => 'Thanh toán đang chờ xác nhận.',
+            'failed' => 'Thanh toán thất bại. Vui lòng thử lại.',
+            'refunded' => 'Đơn hàng đã được hoàn tiền.',
+            default => 'Đơn hàng chưa được thanh toán.',
+        };
+
+        return response()->json([
+            'booking_id' => $booking->id,
+            'status' => $status,
+            'message' => $message,
+            'payment' => $latestPayment ? [
+                'id' => $latestPayment->id,
+                'method' => $latestPayment->method,
+                'status' => $latestPayment->status,
+                'amount' => $latestPayment->amount,
+                'paid_at' => optional($latestPayment->paid_at)->toIso8601String(),
+            ] : null,
         ]);
     }
 }
