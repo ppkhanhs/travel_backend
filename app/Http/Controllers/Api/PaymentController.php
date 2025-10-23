@@ -8,8 +8,10 @@ use App\Models\Payment;
 use App\Services\SepayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use SePay\SePay\Http\Controllers\SePayController;
 
 class PaymentController extends Controller
 {
@@ -20,10 +22,14 @@ class PaymentController extends Controller
         $this->sepay = $sepay;
     }
 
-    public function handleSepayWebhook(Request $request): JsonResponse
+    public function handleSepayWebhook(Request $request): JsonResponse|Response
     {
         $payload = $request->all();
         $this->sepay->log('Webhook received', $payload);
+
+        if ($this->isBankTransferPayload($payload)) {
+            return app(SePayController::class)->webhook($request);
+        }
 
         if (!$this->sepay->verifySignature($payload)) {
             Log::warning('[Sepay] Invalid signature', ['payload' => $payload]);
@@ -133,5 +139,11 @@ class PaymentController extends Controller
                 'paid_at' => optional($latestPayment->paid_at)->toIso8601String(),
             ] : null,
         ]);
+    }
+
+    private function isBankTransferPayload(array $payload): bool
+    {
+        return isset($payload['transferAmount'], $payload['transferType']) &&
+            (array_key_exists('content', $payload) || array_key_exists('description', $payload));
     }
 }
