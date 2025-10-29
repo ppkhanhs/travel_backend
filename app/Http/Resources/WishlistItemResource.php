@@ -28,6 +28,10 @@ class WishlistItemResource extends JsonResource
                 'destination' => $tour->destination,
                 'duration' => $tour->duration,
                 'base_price' => (float) $tour->base_price,
+                'type' => $tour->type,
+                'child_age_limit' => $tour->child_age_limit,
+                'requires_passport' => (bool) $tour->requires_passport,
+                'requires_visa' => (bool) $tour->requires_visa,
                 'media' => $tour->media,
                 'policy' => $tour->policy,
                 'itinerary' => $tour->itinerary,
@@ -41,6 +45,16 @@ class WishlistItemResource extends JsonResource
                         'child_price' => (float) $package->child_price,
                     ];
                 }),
+                'cancellation_policies' => $tour->relationLoaded('cancellationPolicies')
+                    ? $tour->cancellationPolicies->map(function ($policy) {
+                        return [
+                            'id' => $policy->id,
+                            'days_before' => $policy->days_before,
+                            'refund_rate' => $policy->refund_rate,
+                            'description' => $policy->description,
+                        ];
+                    })->values()
+                    : [],
                 'schedules' => $schedules->map(function ($schedule) {
                     return [
                         'id' => $schedule->id,

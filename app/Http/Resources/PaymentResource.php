@@ -14,6 +14,7 @@ class PaymentResource extends JsonResource
             'amount' => $this->amount,
             'tax' => $this->tax,
             'total_amount' => $this->total_amount,
+            'refund_amount' => $this->refund_amount,
             'status' => $this->status,
             'transaction_code' => $this->transaction_code,
             'invoice_number' => $this->invoice_number,
@@ -21,4 +22,3 @@ class PaymentResource extends JsonResource
         ];
     }
 }
-

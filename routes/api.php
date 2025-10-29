@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\AnalyticsEventController;
+use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\PartnerTourController;
 use App\Http\Controllers\Api\Partner\BookingController as PartnerBookingController;
 use App\Http\Controllers\Api\Admin\AdminAccountController;
@@ -39,12 +41,16 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+Route::post('/analytics/events', [AnalyticsEventController::class, 'store'])
+    ->middleware('throttle:120,1');
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/profile', [AuthController::class, 'profile']);
+    Route::get('/recommendations', [RecommendationController::class, 'index']);
 
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::post('/bookings', [BookingController::class, 'store']);
@@ -95,6 +101,7 @@ Route::get('/search/suggestions', [TourController::class, 'suggestions']);
 Route::get('/tours', [TourController::class, 'index']);
 Route::get('/tours/{id}', [TourController::class, 'show']);
 Route::get('/tours/{id}/reviews', [ReviewController::class, 'index']);
+Route::get('/recommendations/similar/{tour}', [RecommendationController::class, 'similar']);
 
 // Partner routes
 Route::middleware(['auth:sanctum'])->group(function () {

@@ -76,4 +76,14 @@ class User extends Authenticatable
     {
         return $this->hasOne(Partner::class);
     }
+
+    public function analyticsEvents(): HasMany
+    {
+        return $this->hasMany(AnalyticsEvent::class);
+    }
+
+    public function recommendation(): HasOne
+    {
+        return $this->hasOne(UserRecommendation::class);
+    }
 }

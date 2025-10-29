@@ -22,6 +22,7 @@ class CartController extends Controller
 
         $cart->load([
             'items.tour',
+            'items.tour.cancellationPolicies',
             'items.schedule',
             'items.package',
         ]);
@@ -94,7 +95,7 @@ class CartController extends Controller
         return $this->show($request);
     }
 
-    public function removeItem(Request $request, string $id): JsonResponse
+    public function removeItem(Request $request, string $id): CartResource
     {
         $cart = $this->getOrCreateCart($request->user()->id);
         $cart->items()->where('id', $id)->delete();
@@ -137,7 +138,7 @@ class CartController extends Controller
 
         if (!$isUpdate && is_null($adults)) {
             throw ValidationException::withMessages([
-                'adults' => ['Vui lÚng cung c?p s? lu?ng ngu?i l?n.'],
+                'adults' => ['Vui l√≤ng cung c?p s? lu?ng ngu?i l?n.'],
             ]);
         }
 
@@ -146,7 +147,7 @@ class CartController extends Controller
 
         if ($adults === 0 && $children === 0) {
             throw ValidationException::withMessages([
-                'adults' => ['S? lu?ng vÈ ph?i l?n hon 0.'],
+                'adults' => ['S? lu?ng v√© ph?i l?n hon 0.'],
             ]);
         }
 
@@ -172,7 +173,7 @@ class CartController extends Controller
 
             if (!$schedule) {
                 throw ValidationException::withMessages([
-                    'schedule_id' => ['L?ch kh?i h‡nh khÙng thu?c tour du?c ch?n.'],
+                    'schedule_id' => ['L?ch kh?i h√†nh kh√¥ng thu?c tour du?c ch?n.'],
                 ]);
             }
         }
@@ -185,7 +186,7 @@ class CartController extends Controller
 
             if (!$package) {
                 throw ValidationException::withMessages([
-                    'package_id' => ['GÛi d?ch v? khÙng thu?c tour du?c ch?n.'],
+                    'package_id' => ['G√≥i d?ch v? kh√¥ng thu?c tour du?c ch?n.'],
                 ]);
             }
         }
@@ -193,3 +194,4 @@ class CartController extends Controller
         return [$tour, $schedule, $package];
     }
 }
+

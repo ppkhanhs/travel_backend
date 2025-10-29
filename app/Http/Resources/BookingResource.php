@@ -12,6 +12,7 @@ class BookingResource extends JsonResource
         $tour = $schedule?->tour;
         $package = $this->whenLoaded('package');
         $payments = $this->whenLoaded('payments');
+        $policies = $tour?->relationLoaded('cancellationPolicies') ? $tour->cancellationPolicies : collect();
 
         return [
             'id' => $this->id,
@@ -31,8 +32,20 @@ class BookingResource extends JsonResource
                 'id' => $tour->id,
                 'title' => $tour->title,
                 'destination' => $tour->destination,
+                'type' => $tour->type,
+                'child_age_limit' => $tour->child_age_limit,
+                'requires_passport' => (bool) $tour->requires_passport,
+                'requires_visa' => (bool) $tour->requires_visa,
                 'partner' => $tour->partner?->only(['id', 'company_name']),
                 'media' => $tour->media,
+                'cancellation_policies' => $policies->map(function ($policy) {
+                    return [
+                        'id' => $policy->id,
+                        'days_before' => $policy->days_before,
+                        'refund_rate' => $policy->refund_rate,
+                        'description' => $policy->description,
+                    ];
+                })->values(),
             ] : null,
             'schedule' => $schedule ? [
                 'id' => $schedule->id,
@@ -74,7 +87,8 @@ class BookingResource extends JsonResource
 
         $baseUrl = rtrim(config('sepay.qr_url', 'https://qr.sepay.vn/img'), '/');
         $amount = (int) round($this->total_price ?? 0);
-        $description = sprintf('BOOKING-%s', $this->id);
+        $pattern = (string) config('sepay.pattern', 'BOOKING-');
+        $description = sprintf('%s%s', $pattern, $this->id);
 
         return sprintf(
             '%s?%s',

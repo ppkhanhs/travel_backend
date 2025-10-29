@@ -20,6 +20,7 @@ class Tour extends Model
         'title',
         'description',
         'destination',
+        'type',
         'duration',
         'base_price',
         'policy',
@@ -27,6 +28,9 @@ class Tour extends Model
         'media',
         'itinerary',
         'status',
+        'child_age_limit',
+        'requires_passport',
+        'requires_visa',
     ];
 
     protected $casts = [
@@ -34,6 +38,9 @@ class Tour extends Model
         'tags' => 'array',
         'media' => 'array',
         'itinerary' => 'array',
+        'child_age_limit' => 'integer',
+        'requires_passport' => 'boolean',
+        'requires_visa' => 'boolean',
     ];
 
     public $incrementing = false;
@@ -60,6 +67,11 @@ class Tour extends Model
     public function packages(): HasMany
     {
         return $this->hasMany(TourPackage::class, 'tour_id');
+    }
+
+    public function cancellationPolicies(): HasMany
+    {
+        return $this->hasMany(CancellationPolicy::class)->orderByDesc('days_before');
     }
 
     public function bookings(): HasManyThrough

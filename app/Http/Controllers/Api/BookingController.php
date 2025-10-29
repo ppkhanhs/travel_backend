@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\BookingPassenger;
+use App\Models\CancellationPolicy;
 use App\Models\Payment;
 use App\Models\Tour;
 use App\Models\TourPackage;
@@ -31,6 +32,7 @@ class BookingController extends Controller
     {
         $bookings = Booking::with([
                 'tourSchedule.tour.partner',
+                'tourSchedule.tour.cancellationPolicies',
                 'package',
                 'passengers',
                 'payments',
@@ -48,6 +50,7 @@ class BookingController extends Controller
     {
         $booking = Booking::with([
                 'tourSchedule.tour.partner',
+                'tourSchedule.tour.cancellationPolicies',
                 'package',
                 'passengers',
                 'payments',
@@ -126,6 +129,8 @@ class BookingController extends Controller
                 ]);
             }
 
+            $this->ensurePassengerRules($tour, $schedule, $data['passengers']);
+
             if ($schedule->seats_available < $totalRequested) {
                 throw ValidationException::withMessages([
                     'schedule_id' => ['Not enough seats are available for this departure.'],
@@ -192,6 +197,7 @@ class BookingController extends Controller
 
         $booking->load([
             'tourSchedule.tour.partner',
+            'tourSchedule.tour.cancellationPolicies',
             'package',
             'passengers',
             'payments',
@@ -209,32 +215,87 @@ class BookingController extends Controller
 
     public function cancel(Request $request, string $id): JsonResponse
     {
-        $booking = Booking::where('user_id', $request->user()->id)->findOrFail($id);
+        $booking = Booking::with([
+            'tourSchedule.tour.cancellationPolicies',
+            'payments',
+        ])->where('user_id', $request->user()->id)->findOrFail($id);
 
         if (!in_array($booking->status, ['pending', 'confirmed'], true)) {
             return response()->json(['message' => 'This booking can no longer be cancelled.'], 422);
         }
 
-        DB::transaction(function () use ($booking) {
-            $schedule = TourSchedule::where('id', $booking->tour_schedule_id)
+        $appliedPolicy = null;
+        $totalRefund = 0.0;
+
+        DB::transaction(function () use ($booking, &$appliedPolicy, &$totalRefund) {
+            $schedule = TourSchedule::with(['tour.cancellationPolicies' => function ($query) {
+                $query->orderByDesc('days_before');
+            }])->where('id', $booking->tour_schedule_id)
                 ->lockForUpdate()
                 ->first();
 
             $booking->status = 'cancelled';
-            $booking->payment_status = 'refunded';
-            $booking->save();
 
             if ($schedule) {
+                $tour = $schedule->tour ?? $booking->tourSchedule?->tour;
+
+                $hoursUntilDeparture = now()->diffInHours(Carbon::parse($schedule->start_date), false);
+
+                if ($hoursUntilDeparture < 0) {
+                    throw ValidationException::withMessages([
+                        'schedule_id' => ['The tour has already started and cannot be cancelled.'],
+                    ]);
+                }
+
+                $daysUntilDeparture = (int) ceil($hoursUntilDeparture / 24);
+
+                $policies = $tour?->cancellationPolicies ?? collect();
+
+                if ($policies->isEmpty()) {
+                    $appliedPolicy = new CancellationPolicy([
+                        'days_before' => 0,
+                        'refund_rate' => 100,
+                    ]);
+                } else {
+                    $appliedPolicy = $policies->first(function (CancellationPolicy $policy) use ($daysUntilDeparture) {
+                        return $daysUntilDeparture >= $policy->days_before;
+                    });
+                }
+
+                if (!$appliedPolicy) {
+                    throw ValidationException::withMessages([
+                        'booking' => ['This booking cannot be cancelled within the current timeframe.'],
+                    ]);
+                }
+
                 $schedule->seats_available += $booking->total_adults + $booking->total_children;
                 $schedule->save();
             }
 
-            $booking->payments()->update([
-                'status' => 'refunded',
-            ]);
+            $refundRate = max(0, min(100, $appliedPolicy->refund_rate ?? 0));
+            $ratio = $refundRate / 100;
+
+            $booking->payment_status = $refundRate > 0 ? 'refunded' : 'unpaid';
+            $booking->save();
+
+            $booking->payments->each(function (Payment $payment) use ($ratio, &$totalRefund) {
+                $baseAmount = $payment->total_amount ?? $payment->amount ?? 0;
+                $refundAmount = round($baseAmount * $ratio, 2);
+                $payment->status = 'refunded';
+                $payment->refund_amount = $refundAmount;
+                $payment->save();
+                $totalRefund += $refundAmount;
+            });
         });
 
-        return response()->json(['message' => 'Booking cancelled successfully.']);
+        return response()->json([
+            'message' => 'Booking cancelled successfully.',
+            'refund' => [
+                'rate' => $appliedPolicy?->refund_rate ?? 0,
+                'amount' => $totalRefund,
+                'policy_days_before' => $appliedPolicy?->days_before,
+            ],
+        ]);
     }
 
     private function hasSepayQrConfig(): bool
@@ -266,4 +327,38 @@ class BookingController extends Controller
 
         return sprintf('%s?%s', $baseUrl, $query);
     }
+
+    private function ensurePassengerRules(Tour $tour, TourSchedule $schedule, array $passengers): void
+    {
+        $childAgeLimit = max(0, (int) ($tour->child_age_limit ?? 0));
+        $departureDate = Carbon::parse($schedule->start_date);
+        $requiresDocument = (bool) ($tour->requires_passport || $tour->requires_visa);
+
+        foreach ($passengers as $index => $passenger) {
+            $position = $index + 1;
+
+            if (($passenger['type'] ?? null) === 'child') {
+                if (empty($passenger['date_of_birth'])) {
+                    throw ValidationException::withMessages([
+                        "passengers.$index.date_of_birth" => ["Passenger #$position requires a date of birth for child tickets."],
+                    ]);
+                }
+
+                $ageAtDeparture = Carbon::parse($passenger['date_of_birth'])->diffInYears($departureDate);
+
+                if ($childAgeLimit > 0 && $ageAtDeparture > $childAgeLimit) {
+                    throw ValidationException::withMessages([
+                        "passengers.$index.date_of_birth" => ["Passenger #$position exceeds the child age limit of {$childAgeLimit}."],
+                    ]);
+                }
+            }
+
+            if ($requiresDocument && empty($passenger['document_number'])) {
+                throw ValidationException::withMessages([
+                    "passengers.$index.document_number" => ["Passenger #$position must provide travel documents for this tour."],
+                ]);
+            }
+        }
+    }
 }
+

@@ -19,6 +19,7 @@ class WishlistController extends Controller
         $items = Wishlist::where('user_id', $request->user()->id)
             ->with([
                 'tour.packages',
+                'tour.cancellationPolicies',
                 'tour.schedules' => fn ($q) => $q->orderBy('start_date'),
             ])
             ->orderByDesc('created_at')
@@ -50,8 +51,8 @@ class WishlistController extends Controller
         $this->logUserActivity($userId, $tourId, 'wishlist');
 
         return response()->json([
-            'message' => 'Tour đã được thêm vào danh sách yêu thích.',
-            'item' => new WishlistItemResource($wishlist->load('tour')),
+            'message' => 'Tour Ä‘Ã£ Ä‘Æ°á»£c thÃªm vÃ o danh sÃ¡ch yÃªu thÃ­ch.',
+            'item' => new WishlistItemResource($wishlist->load('tour.cancellationPolicies')),
         ], 201);
     }
 
@@ -61,7 +62,7 @@ class WishlistController extends Controller
         $wishlist->delete();
 
         return response()->json([
-            'message' => 'Đã xóa tour khỏi danh sách yêu thích.',
+            'message' => 'ÄÃ£ xÃ³a tour khá»i danh sÃ¡ch yÃªu thÃ­ch.',
         ]);
     }
 
@@ -82,7 +83,7 @@ class WishlistController extends Controller
 
         if (count($wishlistedIds) !== count($tourIds)) {
             throw ValidationException::withMessages([
-                'tour_ids' => ['Chỉ có thể so sánh các tour trong danh sách yêu thích.'],
+                'tour_ids' => ['Chá»‰ cÃ³ thá»ƒ so sÃ¡nh cÃ¡c tour trong danh sÃ¡ch yÃªu thÃ­ch.'],
             ]);
         }
 
@@ -90,6 +91,7 @@ class WishlistController extends Controller
                 'partner.user',
                 'categories',
                 'packages',
+                'cancellationPolicies',
                 'schedules' => fn ($q) => $q->orderBy('start_date'),
             ])
             ->whereIn('id', $tourIds)
@@ -150,3 +152,6 @@ class WishlistController extends Controller
         });
     }
 }
+
+
+

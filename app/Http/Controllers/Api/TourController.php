@@ -22,6 +22,9 @@ class TourController extends Controller
             'packages' => function ($q) {
                 $q->where('is_active', true)->orderBy('adult_price');
             },
+            'cancellationPolicies' => function ($q) {
+                $q->orderByDesc('days_before');
+            },
         ]);
 
         if (!$request->filled('status') || $request->status === 'approved') {
@@ -152,6 +155,9 @@ class TourController extends Controller
                 'packages' => function ($q) {
                     $q->where('is_active', true)->orderBy('adult_price');
                 },
+                'cancellationPolicies' => function ($q) {
+                    $q->orderByDesc('days_before');
+                },
             ])
             ->findOrFail($id);
 
@@ -189,6 +195,9 @@ class TourController extends Controller
                 'categories',
                 'packages' => function ($q) {
                     $q->where('is_active', true)->orderBy('adult_price');
+                },
+                'cancellationPolicies' => function ($q) {
+                    $q->orderByDesc('days_before');
                 },
             ])
             ->leftJoinSub($bookingStats, 'booking_stats', function ($join) {

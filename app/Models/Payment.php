@@ -30,6 +30,7 @@ class Payment extends Model
         'transaction_code',
         'status',
         'paid_at',
+        'refund_amount',
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class Payment extends Model
         'tax' => 'float',
         'total_amount' => 'float',
         'paid_at' => 'datetime',
+        'refund_amount' => 'float',
     ];
 
     protected static function booted(): void
