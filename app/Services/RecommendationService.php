@@ -645,7 +645,7 @@ class RecommendationService
         return $sum;
     }
 
-    private function decayFactor(int $days): float
+    public function decayFactor(int $days): float
     {
         if ($days <= 0) {
             return 1.0;
@@ -673,4 +673,5 @@ class RecommendationService
         return $matches / max(1, $favoriteTags->sum());
     }
 }
+
 

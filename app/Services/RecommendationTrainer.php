@@ -10,6 +10,7 @@ use App\Models\RecommendationPopularity;
 use App\Models\Tour;
 use App\Models\User;
 use App\Models\Wishlist;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class RecommendationTrainer
@@ -178,7 +179,9 @@ class RecommendationTrainer
                 continue;
             }
 
-            $days = $wishlist->created_at ? $wishlist->created_at->diffInDays($now) : 0;
+            $createdAt = $wishlist->created_at ? Carbon::parse($wishlist->created_at) : null;
+            $days = $createdAt ? $createdAt->diffInDays($now) : 0;
+
             $this->accumulateScore($scores, (string) $wishlist->user_id, (string) $wishlist->tour_id, 3.0, $days);
         }
 
@@ -481,7 +484,14 @@ class RecommendationTrainer
         ];
 
         if (is_array($tour->itinerary)) {
-            $fields[] = implode(' ', array_filter($tour->itinerary));
+            $itinerary = $tour->itinerary;
+            $items = [];
+            array_walk_recursive($itinerary, function ($value) use (&$items) {
+                if (is_string($value)) {
+                    $items[] = $value;
+                }
+            });
+            $fields[] = implode(' ', array_filter($items));
         } elseif (is_string($tour->itinerary)) {
             $fields[] = $tour->itinerary;
         }
@@ -546,7 +556,18 @@ class RecommendationTrainer
 
     private function roundNumericVector(array $vector): array
     {
-        return array_map(static fn ($value) => round((float) $value, 6), array_values($vector));
+        $result = [];
+
+        foreach ($vector as $value) {
+            $value = (float) $value;
+            if (!is_finite($value)) {
+                $value = 0.0;
+            }
+
+            $result[] = round($value, 6);
+        }
+
+        return $result;
     }
 
     private function roundAssociativeVector(array $vector): array
@@ -554,7 +575,12 @@ class RecommendationTrainer
         $result = [];
 
         foreach ($vector as $key => $value) {
-            $result[$key] = round((float) $value, 6);
+            $value = (float) $value;
+            if (!is_finite($value)) {
+                $value = 0.0;
+            }
+
+            $result[$key] = round($value, 6);
         }
 
         return $result;
@@ -630,6 +656,7 @@ class RecommendationTrainer
         return $sum;
     }
 }
+
 
 
 
