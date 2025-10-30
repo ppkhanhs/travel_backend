@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\UpdateUserRecommendationsJob;
 use App\Models\AnalyticsEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -45,6 +46,10 @@ class AnalyticsEventController extends Controller
                 ]);
             }
         });
+
+        if ($authenticatedUser) {
+            UpdateUserRecommendationsJob::dispatch($authenticatedUser->id);
+        }
 
         return response()->json([
             'stored' => count($payload['events']),
