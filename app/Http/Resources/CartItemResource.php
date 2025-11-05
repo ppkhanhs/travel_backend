@@ -60,6 +60,7 @@ class CartItemResource extends JsonResource
                 'id' => $schedule->id,
                 'start_date' => optional($schedule->start_date)->toDateString(),
                 'end_date' => optional($schedule->end_date)->toDateString(),
+                'min_participants' => $schedule->min_participants,
             ] : null,
             'package' => $package ? [
                 'id' => $package->id,

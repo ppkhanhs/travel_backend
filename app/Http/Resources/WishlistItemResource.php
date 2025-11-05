@@ -62,6 +62,7 @@ class WishlistItemResource extends JsonResource
                         'end_date' => optional($schedule->end_date)->toDateString(),
                         'seats_total' => $schedule->seats_total,
                         'seats_available' => $schedule->seats_available,
+                        'min_participants' => $schedule->min_participants,
                         'season_price' => $schedule->season_price,
                     ];
                 }),

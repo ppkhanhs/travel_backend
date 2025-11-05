@@ -16,6 +16,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         $schedule->command('recommendations:train --top=50')->dailyAt('02:00');
+        $schedule->command('tours:cancel-underbooked')->dailyAt('00:30');
     }
 
     /**

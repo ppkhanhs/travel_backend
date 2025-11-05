@@ -26,6 +26,7 @@ class TourSchedule extends Model
         'end_date',
         'seats_total',
         'seats_available',
+        'min_participants',
         'season_price',
     ];
 
@@ -34,6 +35,7 @@ class TourSchedule extends Model
         'end_date' => 'date',
         'seats_total' => 'integer',
         'seats_available' => 'integer',
+        'min_participants' => 'integer',
         'season_price' => 'float',
     ];
 
