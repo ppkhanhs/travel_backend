@@ -13,7 +13,19 @@ class TourController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $tours = Tour::with(['partner.user'])
+        $tours = Tour::with([
+                'partner.user',
+                'categories',
+                'schedules' => function ($query) {
+                    $query->orderBy('start_date');
+                },
+                'packages' => function ($query) {
+                    $query->orderBy('adult_price');
+                },
+                'cancellationPolicies' => function ($query) {
+                    $query->orderByDesc('days_before');
+                },
+            ])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
             ->when($request->filled('partner_id'), fn ($q) => $q->where('partner_id', $request->partner_id))
             ->when($request->filled('search'), function ($query) use ($request) {
@@ -31,7 +43,19 @@ class TourController extends Controller
 
     public function show(string $id): JsonResponse
     {
-        $tour = Tour::with(['partner.user', 'schedules'])->findOrFail($id);
+        $tour = Tour::with([
+                'partner.user',
+                'categories',
+                'schedules' => function ($query) {
+                    $query->orderBy('start_date');
+                },
+                'packages' => function ($query) {
+                    $query->orderBy('adult_price');
+                },
+                'cancellationPolicies' => function ($query) {
+                    $query->orderByDesc('days_before');
+                },
+            ])->findOrFail($id);
 
         return response()->json($tour);
     }
