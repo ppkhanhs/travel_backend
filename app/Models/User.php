@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Partner;
+use App\Models\RecentTourView;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -85,5 +86,10 @@ class User extends Authenticatable
     public function recommendation(): HasOne
     {
         return $this->hasOne(UserRecommendation::class);
+    }
+
+    public function recentTourViews(): HasMany
+    {
+        return $this->hasMany(RecentTourView::class);
     }
 }

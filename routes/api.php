@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\AnalyticsEventController;
 use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\PartnerTourController;
+use App\Http\Controllers\Api\RecentTourController;
 use App\Http\Controllers\Api\Partner\BookingController as PartnerBookingController;
 use App\Http\Controllers\Api\Admin\AdminAccountController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
@@ -51,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::get('/recommendations', [RecommendationController::class, 'index']);
+    Route::get('/recent-tours', [RecentTourController::class, 'index']);
 
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::post('/bookings', [BookingController::class, 'store']);

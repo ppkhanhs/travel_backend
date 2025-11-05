@@ -5,12 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Tour;
 use Carbon\Carbon;
+use App\Services\RecentViewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class TourController extends Controller
 {
+    public function __construct(private RecentViewService $recentViews)
+    {
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = Tour::with([
@@ -143,7 +148,7 @@ class TourController extends Controller
         return response()->json($tours);
     }
 
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
         $tour = Tour::approved()
             ->with([
@@ -167,6 +172,8 @@ class TourController extends Controller
 
         $tour->setAttribute('rating_average', (float) ($stats->rating_average ?? 0));
         $tour->setAttribute('rating_count', (int) ($stats->rating_count ?? 0));
+
+        $this->recentViews->recordView($request->user(), $tour);
 
         return response()->json($tour);
     }
