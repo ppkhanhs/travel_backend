@@ -8,10 +8,12 @@ use App\Models\Booking;
 use App\Models\BookingPassenger;
 use App\Models\CancellationPolicy;
 use App\Models\Payment;
+use App\Models\Promotion;
 use App\Models\Tour;
 use App\Models\TourPackage;
 use App\Models\TourSchedule;
 use App\Services\SepayService;
+use App\Services\AutoPromotionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -21,11 +23,10 @@ use Illuminate\Validation\ValidationException;
 
 class BookingController extends Controller
 {
-    private SepayService $sepay;
-
-    public function __construct(SepayService $sepay)
-    {
-        $this->sepay = $sepay;
+    public function __construct(
+        private SepayService $sepay,
+        private AutoPromotionService $autoPromotions
+    ) {
     }
 
     public function index(Request $request): AnonymousResourceCollection
@@ -37,6 +38,7 @@ class BookingController extends Controller
                 'passengers',
                 'payments',
                 'review',
+                'promotions',
             ])
             ->where('user_id', $request->user()->id)
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
@@ -55,6 +57,7 @@ class BookingController extends Controller
                 'passengers',
                 'payments',
                 'review',
+                'promotions',
             ])
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
@@ -81,6 +84,7 @@ class BookingController extends Controller
             'passengers.*.gender' => 'nullable|string|max:20',
             'passengers.*.date_of_birth' => 'nullable|date',
             'passengers.*.document_number' => 'nullable|string|max:100',
+            'promotion_code' => 'nullable|string|max:50',
         ]);
 
         $data['children'] = $data['children'] ?? 0;
@@ -104,11 +108,14 @@ class BookingController extends Controller
             ]);
         }
 
+        $promotion = $this->resolvePromotion($data['promotion_code'] ?? null);
+        unset($data['promotion_code']);
+
         $paymentUrl = null;
         $paymentQrUrl = null;
         $paymentId = null;
 
-        $booking = DB::transaction(function () use ($request, $data, $totalRequested, &$paymentUrl, &$paymentId) {
+        $booking = DB::transaction(function () use ($request, $data, $totalRequested, &$paymentUrl, &$paymentId, &$paymentQrUrl, $promotion) {
             $tour = Tour::where('id', $data['tour_id'])
                 ->where('status', 'approved')
                 ->firstOrFail();
@@ -139,7 +146,14 @@ class BookingController extends Controller
 
             $adultPrice = (float) $package->adult_price;
             $childPrice = (float) ($package->child_price ?? round($package->adult_price * 0.75, 2));
-            $totalPrice = $adultPrice * $data['adults'] + $childPrice * $data['children'];
+            $subTotal = $adultPrice * $data['adults'] + $childPrice * $data['children'];
+
+            $autoPromotions = $this->autoPromotions
+                ->getAutoPromotionsForTour($tour->id, $tour->partner_id, Carbon::parse($schedule->start_date))
+                ->all();
+
+            $promotionChain = array_merge($autoPromotions, $promotion ? [$promotion] : []);
+            [$totalPrice, $promotionDetails] = $this->calculatePromotionDiscount($subTotal, $promotionChain);
 
             $booking = Booking::create([
                 'user_id' => $request->user()->id,
@@ -180,6 +194,17 @@ class BookingController extends Controller
 
             $paymentId = $payment->id;
 
+            foreach ($promotionDetails as $applied) {
+                /** @var Promotion $appliedPromotion */
+                $appliedPromotion = $applied['promotion'];
+
+                $booking->promotions()->attach($appliedPromotion->id, [
+                    'discount_amount' => $applied['discount'],
+                    'discount_type' => $appliedPromotion->discount_type,
+                    'applied_value' => $appliedPromotion->value,
+                ]);
+            }
+
             if ($data['payment_method'] === 'sepay') {
                 $booking->loadMissing('user');
                 $notifyUrl = route('payments.sepay.webhook');
@@ -202,6 +227,7 @@ class BookingController extends Controller
             'passengers',
             'payments',
             'review',
+            'promotions',
         ]);
 
         return response()->json([
@@ -288,6 +314,8 @@ class BookingController extends Controller
             });
         });
 
+        $booking->promotions()->detach();
+
         return response()->json([
             'message' => 'Booking cancelled successfully.',
             'refund' => [
@@ -296,6 +324,63 @@ class BookingController extends Controller
                 'policy_days_before' => $appliedPolicy?->days_before,
             ],
         ]);
+    }
+
+    private function resolvePromotion(?string $code): ?Promotion
+    {
+        $code = is_string($code) ? trim($code) : '';
+
+        if ($code === '') {
+            return null;
+        }
+
+        $normalized = function_exists('mb_strtolower') ? mb_strtolower($code) : strtolower($code);
+
+        $promotion = Promotion::query()
+            ->whereRaw('LOWER(code) = ?', [$normalized])
+            ->first();
+
+        if (!$promotion) {
+            throw ValidationException::withMessages([
+                'promotion_code' => ['Promotion code is invalid.'],
+            ]);
+        }
+
+        if (!$promotion->isCurrentlyActive()) {
+            throw ValidationException::withMessages([
+                'promotion_code' => ['Promotion code is not active.'],
+            ]);
+        }
+
+        $remaining = $promotion->remainingUses();
+        if (!is_null($remaining) && $remaining <= 0) {
+            throw ValidationException::withMessages([
+                'promotion_code' => ['Promotion code has reached its usage limit.'],
+            ]);
+        }
+
+        return $promotion;
+    }
+
+    private function calculatePromotionDiscount(float $amount, ?Promotion $promotion): array
+    {
+        if (!$promotion || $amount <= 0) {
+            return [round($amount, 2), 0.0];
+        }
+
+        $discount = 0.0;
+        $type = strtolower($promotion->discount_type ?? '');
+
+        if (in_array($type, ['percent', 'percentage'], true)) {
+            $discount = round($amount * ($promotion->value / 100), 2);
+        } else {
+            $discount = (float) $promotion->value;
+        }
+
+        $discount = max(0.0, min($amount, $discount));
+        $total = round($amount - $discount, 2);
+
+        return [$total, $discount];
     }
 
     private function hasSepayQrConfig(): bool

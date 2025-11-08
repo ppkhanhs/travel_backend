@@ -86,4 +86,10 @@ class Booking extends Model
     {
         return $this->hasOne(Review::class);
     }
+
+    public function promotions(): BelongsToMany
+    {
+        return $this->belongsToMany(Promotion::class, 'booking_promotions')
+            ->withPivot(['discount_amount', 'discount_type', 'applied_value']);
+    }
 }

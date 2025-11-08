@@ -4,15 +4,21 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tour;
+use App\Models\Promotion;
 use Carbon\Carbon;
 use App\Services\RecentViewService;
+use App\Services\AutoPromotionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class TourController extends Controller
 {
-    public function __construct(private RecentViewService $recentViews)
+    public function __construct(
+        private RecentViewService $recentViews,
+        private AutoPromotionService $autoPromotions
+    )
     {
     }
 
@@ -144,6 +150,7 @@ class TourController extends Controller
         }
 
         $tours = $query->paginate($request->integer('per_page', 12));
+        $this->autoPromotions->attachToTours($tours->getCollection());
 
         return response()->json($tours);
     }
@@ -174,6 +181,7 @@ class TourController extends Controller
         $tour->setAttribute('rating_count', (int) ($stats->rating_count ?? 0));
 
         $this->recentViews->recordView($request->user(), $tour);
+        $this->autoPromotions->attachToTours(collect([$tour]));
 
         return response()->json($tour);
     }
@@ -223,6 +231,8 @@ class TourController extends Controller
             ->orderByDesc('tours.created_at')
             ->limit($limit)
             ->get();
+
+        $this->autoPromotions->attachToTours($tours);
 
         return response()->json($tours);
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Promotion;
 use App\Models\Tour;
+use App\Services\AutoPromotionService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,10 @@ use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
+    public function __construct(private AutoPromotionService $autoPromotions)
+    {
+    }
+
     public function index(Request $request): JsonResponse
     {
         $categoriesLimit = $request->integer('categories_limit', 6);
@@ -21,6 +26,7 @@ class HomeController extends Controller
 
         $categories = $this->getHighlightCategories($categoriesLimit);
         $promotions = Promotion::active()
+            ->where('auto_apply', false)
             ->orderBy('valid_from')
             ->limit($promotionsLimit)
             ->get();
@@ -77,7 +83,7 @@ class HomeController extends Controller
             )
             ->groupBy('tour_schedules.tour_id');
 
-        return Tour::approved()
+        $tours = Tour::approved()
             ->with([
                 'partner.user',
                 'categories',
@@ -104,6 +110,9 @@ class HomeController extends Controller
             ->orderByDesc('tours.created_at')
             ->limit($limit)
             ->get();
+
+        $this->autoPromotions->attachToTours($tours);
+
+        return $tours;
     }
 }
-

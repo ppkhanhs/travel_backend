@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\AnalyticsEventController;
 use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\PartnerTourController;
+use App\Http\Controllers\Api\Partner\PromotionController as PartnerPromotionController;
 use App\Http\Controllers\Api\RecentTourController;
 use App\Http\Controllers\Api\Partner\BookingController as PartnerBookingController;
 use App\Http\Controllers\Api\Admin\AdminAccountController;
@@ -115,6 +116,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::get('/partner/bookings', [PartnerBookingController::class, 'index']);
     Route::patch('/partner/bookings/{id}/status', [PartnerBookingController::class, 'updateStatus']);
+
+    Route::get('/partner/promotions', [PartnerPromotionController::class, 'index']);
+    Route::post('/partner/promotions', [PartnerPromotionController::class, 'store']);
+    Route::put('/partner/promotions/{id}', [PartnerPromotionController::class, 'update']);
+    Route::delete('/partner/promotions/{id}', [PartnerPromotionController::class, 'destroy']);
 });
 
 // Admin routes

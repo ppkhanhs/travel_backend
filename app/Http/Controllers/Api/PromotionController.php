@@ -13,7 +13,9 @@ class PromotionController extends Controller
     {
         $limit = $request->integer('limit');
 
-        $query = Promotion::active()->orderBy('valid_from');
+        $query = Promotion::active()
+            ->where('auto_apply', false)
+            ->orderBy('valid_from');
         if ($limit) {
             $query->limit($limit);
         }

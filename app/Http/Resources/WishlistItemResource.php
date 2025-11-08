@@ -35,6 +35,7 @@ class WishlistItemResource extends JsonResource
                 'media' => $tour->media,
                 'policy' => $tour->policy,
                 'itinerary' => $tour->itinerary,
+                'price_after_discount' => $tour->price_after_discount ?? $tour->base_price,
                 'average_rating' => (float) ($tour->rating_average ?? 0),
                 'rating_count' => (int) ($tour->rating_count ?? 0),
                 'packages' => $packages->map(function ($package) {

@@ -45,6 +45,7 @@ class CartItemResource extends JsonResource
                 'requires_passport' => (bool) $tour->requires_passport,
                 'requires_visa' => (bool) $tour->requires_visa,
                 'media' => $tour->media,
+                'price_after_discount' => $tour->price_after_discount ?? $tour->base_price,
                 'cancellation_policies' => $tour->relationLoaded('cancellationPolicies')
                     ? $tour->cancellationPolicies->map(function ($policy) {
                         return [

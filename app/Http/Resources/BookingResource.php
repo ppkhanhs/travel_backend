@@ -13,6 +13,8 @@ class BookingResource extends JsonResource
         $package = $this->whenLoaded('package');
         $payments = $this->whenLoaded('payments');
         $policies = $tour?->relationLoaded('cancellationPolicies') ? $tour->cancellationPolicies : collect();
+        $promotions = $this->whenLoaded('promotions');
+        $promotionCollection = $promotions ?? collect();
 
         return [
             'id' => $this->id,
@@ -68,6 +70,18 @@ class BookingResource extends JsonResource
                     'comment' => $this->review->comment,
                     'created_at' => optional($this->review->created_at)->toIso8601String(),
                 ] : null;
+            }),
+            'promotions' => $promotionCollection->map(function ($promotion) {
+                return [
+                    'id' => $promotion->id,
+                    'code' => $promotion->code,
+                    'discount_type' => $promotion->pivot->discount_type ?? $promotion->discount_type,
+                    'value' => $promotion->value,
+                    'discount_amount' => (float) ($promotion->pivot->discount_amount ?? 0),
+                ];
+            })->values(),
+            'discount_total' => (float) $promotionCollection->sum(function ($promotion) {
+                return (float) ($promotion->pivot->discount_amount ?? 0);
             }),
             'can_cancel' => in_array($this->status, ['pending', 'confirmed'], true),
             'payment_qr_url' => $this->generateSepayQrUrl($payments),

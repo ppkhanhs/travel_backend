@@ -5,6 +5,8 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Promotion extends Model
@@ -20,18 +22,23 @@ class Promotion extends Model
     protected $fillable = [
         'id',
         'code',
+        'description',
+        'partner_id',
+        'tour_id',
         'discount_type',
         'value',
         'max_usage',
         'valid_from',
         'valid_to',
         'is_active',
+        'auto_apply',
     ];
 
     protected $casts = [
         'valid_from' => 'date',
         'valid_to' => 'date',
         'is_active' => 'boolean',
+        'auto_apply' => 'boolean',
         'value' => 'float',
     ];
 
@@ -59,5 +66,58 @@ class Promotion extends Model
                 $q->whereNull('valid_to')
                     ->orWhere('valid_to', '>=', $today);
             });
+    }
+
+    public function bookings(): BelongsToMany
+    {
+        return $this->belongsToMany(Booking::class, 'booking_promotions')
+            ->withPivot(['discount_amount', 'discount_type', 'applied_value']);
+    }
+
+    public function partner()
+    {
+        return $this->belongsTo(Partner::class);
+    }
+
+    public function tour()
+    {
+        return $this->belongsTo(Tour::class);
+    }
+
+    public function isCurrentlyActive(): bool
+    {
+        return $this->isActiveAt(Carbon::today());
+    }
+
+    public function remainingUses(): ?int
+    {
+        if (is_null($this->max_usage)) {
+            return null;
+        }
+
+        $usage = DB::table('booking_promotions')
+            ->join('bookings', 'booking_promotions.booking_id', '=', 'bookings.id')
+            ->where('booking_promotions.promotion_id', $this->id)
+            ->whereNotIn('bookings.status', ['cancelled'])
+            ->count();
+
+        return max(0, (int) $this->max_usage - $usage);
+    }
+
+    public function isActiveAt(Carbon $date): bool
+    {
+        if (!$this->is_active) {
+            return false;
+        }
+
+        if ($this->valid_from && $date->lt(Carbon::parse($this->valid_from))) {
+            return false;
+        }
+
+        if ($this->valid_to && $date->gt(Carbon::parse($this->valid_to))) {
+            return false;
+        }
+
+        return true;
     }
 }
