@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\PartnerTourController;
 use App\Http\Controllers\Api\Partner\PromotionController as PartnerPromotionController;
 use App\Http\Controllers\Api\RecentTourController;
 use App\Http\Controllers\Api\Partner\BookingController as PartnerBookingController;
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\Admin\AdminAccountController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
@@ -48,6 +49,7 @@ Route::post('/analytics/events', [AnalyticsEventController::class, 'store'])
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/chatbot', [ChatController::class, 'chat'])->middleware('throttle:30,1');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
