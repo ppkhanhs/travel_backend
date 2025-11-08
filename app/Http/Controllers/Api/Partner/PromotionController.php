@@ -21,9 +21,16 @@ class PromotionController extends Controller
         }
 
         $promotions = Promotion::query()
+            ->with('tours:id,title,destination')
             ->where('partner_id', $partner->id)
-            ->where('auto_apply', true)
-            ->when($request->filled('tour_id'), fn ($q) => $q->where('tour_id', $request->tour_id))
+            ->when($request->filled('type'), fn ($q) => $q->where('type', $request->type))
+            ->when($request->filled('tour_id'), function ($query) use ($request) {
+                $tourId = $request->tour_id;
+                $query->where(function ($q) use ($tourId) {
+                    $q->whereHas('tours', fn ($sub) => $sub->where('tours.id', $tourId))
+                        ->orWhere('tour_id', $tourId);
+                });
+            })
             ->orderByDesc('valid_from')
             ->paginate($request->integer('per_page', 20));
 
@@ -38,7 +45,9 @@ class PromotionController extends Controller
         }
 
         $data = $request->validate([
-            'tour_id' => 'required|uuid',
+            'type' => ['required', Rule::in(['auto', 'voucher'])],
+            'tour_ids' => 'required|array|min:1',
+            'tour_ids.*' => 'uuid|distinct',
             'discount_type' => ['required', Rule::in(['percent', 'percentage', 'fixed'])],
             'value' => 'required|numeric|min:0',
             'max_usage' => 'nullable|integer|min:1',
@@ -46,23 +55,44 @@ class PromotionController extends Controller
             'valid_to' => 'nullable|date|after_or_equal:valid_from',
             'description' => 'nullable|string',
             'is_active' => 'boolean',
+            'auto_issue_on_cancel' => 'nullable|boolean',
+            'code' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('promotions', 'code')->where(fn ($q) => $q->whereNotNull('code')),
+            ],
         ]);
 
-        $tour = DB::table('tours')
-            ->where('id', $data['tour_id'])
+        $tourCount = DB::table('tours')
+            ->whereIn('id', $data['tour_ids'])
             ->where('partner_id', $partner->id)
-            ->first();
+            ->count();
 
-        if (!$tour) {
-            return response()->json(['message' => 'Tour not found or unavailable.'], 404);
+        if ($tourCount !== count($data['tour_ids'])) {
+            return response()->json(['message' => 'One or more tours are unavailable.'], 404);
         }
 
-        $promotion = Promotion::create(array_merge($data, [
-            'code' => $this->generateCode($partner->id),
-            'auto_apply' => true,
+        $isAuto = $data['type'] === 'auto';
+        $code = $data['code'] ?? ($isAuto ? null : $this->generateCode($partner->id));
+
+        $promotion = Promotion::create([
+            'code' => $code,
+            'type' => $data['type'],
+            'description' => $data['description'] ?? null,
             'partner_id' => $partner->id,
+            'discount_type' => $data['discount_type'],
+            'value' => $data['value'],
+            'max_usage' => $data['max_usage'] ?? null,
+            'valid_from' => $data['valid_from'] ?? null,
+            'valid_to' => $data['valid_to'] ?? null,
             'is_active' => $data['is_active'] ?? true,
-        ]));
+            'auto_apply' => $isAuto,
+            'auto_issue_on_cancel' => !$isAuto && ($data['auto_issue_on_cancel'] ?? false),
+        ]);
+
+        $promotion->tours()->sync($data['tour_ids']);
+        $promotion->load('tours:id,title,destination');
 
         return response()->json([
             'message' => 'Promotion created successfully.',
@@ -78,12 +108,15 @@ class PromotionController extends Controller
         }
 
         $promotion = Promotion::query()
+            ->with('tours')
             ->where('id', $id)
             ->where('partner_id', $partner->id)
-            ->where('auto_apply', true)
             ->firstOrFail();
 
         $data = $request->validate([
+            'type' => ['sometimes', Rule::in(['auto', 'voucher'])],
+            'tour_ids' => 'sometimes|array|min:1',
+            'tour_ids.*' => 'uuid|distinct',
             'discount_type' => ['sometimes', Rule::in(['percent', 'percentage', 'fixed'])],
             'value' => 'sometimes|numeric|min:0',
             'max_usage' => 'sometimes|nullable|integer|min:1',
@@ -91,9 +124,46 @@ class PromotionController extends Controller
             'valid_to' => 'sometimes|nullable|date|after_or_equal:valid_from',
             'description' => 'sometimes|nullable|string',
             'is_active' => 'sometimes|boolean',
+            'auto_issue_on_cancel' => 'sometimes|boolean',
+            'code' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('promotions', 'code')
+                    ->where(fn ($q) => $q->whereNotNull('code'))
+                    ->ignore($promotion->id),
+            ],
         ]);
 
-        $promotion->update($data);
+        if (isset($data['tour_ids'])) {
+            $tourCount = DB::table('tours')
+                ->whereIn('id', $data['tour_ids'])
+                ->where('partner_id', $partner->id)
+                ->count();
+
+            if ($tourCount !== count($data['tour_ids'])) {
+                return response()->json(['message' => 'One or more tours are unavailable.'], 404);
+            }
+        }
+
+        $payload = $data;
+
+        if (isset($data['type'])) {
+            $payload['auto_apply'] = $data['type'] === 'auto';
+        }
+
+        if (array_key_exists('auto_issue_on_cancel', $data)) {
+            $payload['auto_issue_on_cancel'] = (bool) $data['auto_issue_on_cancel'];
+        }
+
+        $promotion->update($payload);
+
+        if (isset($data['tour_ids'])) {
+            $promotion->tours()->sync($data['tour_ids']);
+        }
+
+        $promotion->refresh()->load('tours:id,title,destination');
 
         return response()->json([
             'message' => 'Promotion updated successfully.',
@@ -111,7 +181,6 @@ class PromotionController extends Controller
         $promotion = Promotion::query()
             ->where('id', $id)
             ->where('partner_id', $partner->id)
-            ->where('auto_apply', true)
             ->firstOrFail();
 
         $promotion->delete();
@@ -142,4 +211,3 @@ class PromotionController extends Controller
         return sprintf('AUTO-%s', Str::upper(Str::random(8)));
     }
 }
-

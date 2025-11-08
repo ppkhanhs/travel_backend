@@ -15,6 +15,7 @@ class BookingResource extends JsonResource
         $policies = $tour?->relationLoaded('cancellationPolicies') ? $tour->cancellationPolicies : collect();
         $promotions = $this->whenLoaded('promotions');
         $promotionCollection = $promotions ?? collect();
+        $refunds = $this->whenLoaded('refundRequests');
 
         return [
             'id' => $this->id,
@@ -83,6 +84,24 @@ class BookingResource extends JsonResource
             'discount_total' => (float) $promotionCollection->sum(function ($promotion) {
                 return (float) ($promotion->pivot->discount_amount ?? 0);
             }),
+            'refund_requests' => $refunds ? $refunds->map(function ($refund) {
+                return [
+                    'id' => $refund->id,
+                    'status' => $refund->status,
+                    'amount' => $refund->amount,
+                    'currency' => $refund->currency,
+                    'bank_account_name' => $refund->bank_account_name,
+                    'bank_account_number' => $refund->bank_account_number,
+                    'bank_name' => $refund->bank_name,
+                    'bank_branch' => $refund->bank_branch,
+                    'customer_message' => $refund->customer_message,
+                    'partner_message' => $refund->partner_message,
+                    'proof_url' => $refund->proof_url,
+                    'partner_marked_at' => optional($refund->partner_marked_at)->toIso8601String(),
+                    'customer_confirmed_at' => optional($refund->customer_confirmed_at)->toIso8601String(),
+                    'created_at' => optional($refund->created_at)->toIso8601String(),
+                ];
+            })->values() : null,
             'can_cancel' => in_array($this->status, ['pending', 'confirmed'], true),
             'payment_qr_url' => $this->generateSepayQrUrl($payments),
         ];

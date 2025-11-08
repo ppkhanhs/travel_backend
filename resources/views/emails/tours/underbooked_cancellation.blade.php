@@ -23,10 +23,30 @@
     </ul>
 @endif
 
+@if($vouchers->isNotEmpty())
+    <p>Để bù đắp cho sự bất tiện, chúng tôi đã tặng kèm voucher sử dụng cho các tour thuộc cùng đối tác:</p>
+    <ul>
+        @foreach($vouchers as $voucher)
+            <li>
+                Mã <strong>{{ $voucher->voucher_code }}</strong> –
+                Giảm
+                @if(in_array(strtolower($voucher->promotion->discount_type ?? ''), ['percent', 'percentage']))
+                    {{ $voucher->promotion->value }}%
+                @else
+                    {{ number_format($voucher->promotion->value, 0, '.', ',') }} VND
+                @endif
+                @if($voucher->expires_at)
+                    (Hạn dùng tới {{ $voucher->expires_at->timezone('Asia/Ho_Chi_Minh')->format('d/m/Y') }})
+                @endif
+            </li>
+        @endforeach
+    </ul>
+    <p>Vui lòng nhập mã trên khi đặt tour mới hoặc liên hệ bộ phận hỗ trợ nếu cần trợ giúp.</p>
+@endif
+
 <p>Nếu quý khách muốn chuyển sang lịch khác, xin vui lòng phản hồi email này hoặc liên hệ bộ phận hỗ trợ của chúng tôi.</p>
 
 <p>Rất mong được đồng hành cùng quý khách trong những hành trình sắp tới.</p>
 
 <p>Trân trọng,<br>
 {{ config('app.name') }}</p>
-

@@ -39,6 +39,7 @@ class BookingController extends Controller
                 'payments',
                 'review',
                 'promotions',
+                'refundRequests',
             ])
             ->where('user_id', $request->user()->id)
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
@@ -58,6 +59,7 @@ class BookingController extends Controller
                 'payments',
                 'review',
                 'promotions',
+                'refundRequests',
             ])
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
@@ -228,6 +230,7 @@ class BookingController extends Controller
             'payments',
             'review',
             'promotions',
+            'refundRequests',
         ]);
 
         return response()->json([

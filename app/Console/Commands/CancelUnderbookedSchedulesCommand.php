@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Mail\UnderbookedTourCancellationMail;
 use App\Models\Booking;
 use App\Models\TourSchedule;
+use App\Services\PromotionAssignmentService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,11 @@ class CancelUnderbookedSchedulesCommand extends Command
     protected $signature = 'tours:cancel-underbooked {--days=3 : Number of days before departure to check}';
 
     protected $description = 'Cancel tour schedules that do not meet minimum participant requirements and notify customers.';
+
+    public function __construct(private PromotionAssignmentService $promotionAssignments)
+    {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
@@ -107,8 +113,26 @@ class CancelUnderbookedSchedulesCommand extends Command
                     continue;
                 }
 
+                $voucherCollection = collect();
+
+                try {
+                    $assignment = $this->promotionAssignments->issueAutoCancelVoucher($booking);
+                    if ($assignment) {
+                        $voucherCollection->push($assignment);
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('[Tours] Failed to issue voucher after auto-cancel', [
+                        'booking_id' => $booking->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
                 Mail::to($recipient)->send(
-                    new UnderbookedTourCancellationMail($booking->fresh(['tourSchedule.tour']), $alternatives)
+                    new UnderbookedTourCancellationMail(
+                        $booking->fresh(['tourSchedule.tour']),
+                        $alternatives,
+                        $voucherCollection
+                    )
                 );
             }
 

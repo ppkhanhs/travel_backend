@@ -5,7 +5,9 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -25,6 +27,7 @@ class Promotion extends Model
         'description',
         'partner_id',
         'tour_id',
+        'type',
         'discount_type',
         'value',
         'max_usage',
@@ -32,6 +35,7 @@ class Promotion extends Model
         'valid_to',
         'is_active',
         'auto_apply',
+        'auto_issue_on_cancel',
     ];
 
     protected $casts = [
@@ -39,6 +43,7 @@ class Promotion extends Model
         'valid_to' => 'date',
         'is_active' => 'boolean',
         'auto_apply' => 'boolean',
+        'auto_issue_on_cancel' => 'boolean',
         'value' => 'float',
     ];
 
@@ -74,14 +79,19 @@ class Promotion extends Model
             ->withPivot(['discount_amount', 'discount_type', 'applied_value']);
     }
 
-    public function partner()
+    public function partner(): BelongsTo
     {
         return $this->belongsTo(Partner::class);
     }
 
-    public function tour()
+    public function tours(): BelongsToMany
     {
-        return $this->belongsTo(Tour::class);
+        return $this->belongsToMany(Tour::class, 'promotion_tour');
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(PromotionAssignment::class);
     }
 
     public function isCurrentlyActive(): bool
@@ -119,5 +129,15 @@ class Promotion extends Model
         }
 
         return true;
+    }
+
+    public function isVoucher(): bool
+    {
+        return $this->type === 'voucher';
+    }
+
+    public function isAutoDiscount(): bool
+    {
+        return $this->auto_apply === true && $this->type === 'auto';
     }
 }

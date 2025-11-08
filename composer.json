@@ -16,6 +16,7 @@
         "socialiteproviders/google": "^4.1"
     },
     "require-dev": {
+        "barryvdh/laravel-dompdf": "^2.2",
         "fakerphp/faker": "^1.9.1",
         "laravel/pint": "^1.0",
         "laravel/sail": "^1.0.1",

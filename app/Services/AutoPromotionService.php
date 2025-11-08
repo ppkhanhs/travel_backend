@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Promotion;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class AutoPromotionService
 {
@@ -27,17 +28,55 @@ class AutoPromotionService
             return;
         }
 
-        $promotions = Promotion::query()
+        $pivot = DB::table('promotion_tour')
             ->whereIn('tour_id', $tourIds)
+            ->get()
+            ->groupBy('tour_id');
+
+        $promotionIds = $pivot->flatten()
+            ->pluck('promotion_id')
+            ->merge(
+                Promotion::query()
+                    ->whereIn('tour_id', $tourIds)
+                    ->whereNotNull('tour_id')
+                    ->pluck('id')
+            )
+            ->unique()
+            ->filter();
+
+        if ($promotionIds->isEmpty()) {
+            $collection->each(function ($tour) {
+                $tour->setAttribute('auto_promotion', null);
+                $tour->setAttribute('price_after_discount', (float) ($tour->base_price ?? 0));
+            });
+            return;
+        }
+
+        $promotions = Promotion::query()
+            ->whereIn('id', $promotionIds)
             ->where('auto_apply', true)
             ->where('is_active', true)
             ->get()
+            ->keyBy('id');
+
+        $legacyGroups = $promotions
+            ->filter(fn (Promotion $promotion) => $promotion->tour_id)
             ->groupBy('tour_id');
 
         $today = Carbon::today();
 
         foreach ($collection as $tour) {
-            $promo = $this->pickPromotion($promotions->get($tour->id, collect()), $today, $tour->partner_id ?? null);
+            $linkedPromotionIds = $pivot->get($tour->id, collect())->pluck('promotion_id');
+
+            $eligiblePromotions = $linkedPromotionIds
+                ->map(fn ($id) => $promotions->get($id))
+                ->filter();
+
+            if ($eligiblePromotions->isEmpty()) {
+                $eligiblePromotions = $legacyGroups->get($tour->id, collect());
+            }
+
+            $promo = $this->pickPromotion($eligiblePromotions, $today, $tour->partner_id ?? null);
 
             if ($promo) {
                 $discount = $this->calculateDiscount((float) ($tour->base_price ?? 0), $promo);
@@ -68,8 +107,22 @@ class AutoPromotionService
     {
         $date = $referenceDate ?? Carbon::today();
 
-        return Promotion::query()
+        $promotionIds = DB::table('promotion_tour')
             ->where('tour_id', $tourId)
+            ->pluck('promotion_id');
+
+        if ($promotionIds->isEmpty()) {
+            $promotionIds = Promotion::query()
+                ->where('tour_id', $tourId)
+                ->pluck('id');
+        }
+
+        if ($promotionIds->isEmpty()) {
+            return collect();
+        }
+
+        return Promotion::query()
+            ->whereIn('id', $promotionIds)
             ->where('auto_apply', true)
             ->where('is_active', true)
             ->when($partnerId, fn ($q) => $q->where('partner_id', $partnerId))
@@ -120,4 +173,3 @@ class AutoPromotionService
             ->first();
     }
 }
-

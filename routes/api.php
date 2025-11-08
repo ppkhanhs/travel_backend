@@ -19,6 +19,9 @@ use App\Http\Controllers\Api\PartnerTourController;
 use App\Http\Controllers\Api\Partner\PromotionController as PartnerPromotionController;
 use App\Http\Controllers\Api\RecentTourController;
 use App\Http\Controllers\Api\Partner\BookingController as PartnerBookingController;
+use App\Http\Controllers\Api\Partner\RefundController as PartnerRefundController;
+use App\Http\Controllers\Api\RefundController;
+use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\Admin\AdminAccountController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
@@ -62,6 +65,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
     Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
     Route::get('/bookings/{id}/payment-status', [PaymentController::class, 'status']);
+    Route::post('/bookings/{booking}/refund-request', [RefundController::class, 'store']);
+    Route::get('/refund-requests', [RefundController::class, 'index']);
+    Route::post('/refund-requests/{id}/confirm', [RefundController::class, 'confirm']);
+    Route::post('/bookings/{booking}/invoice-request', [InvoiceController::class, 'request']);
+    Route::get('/bookings/{booking}/invoice', [InvoiceController::class, 'show']);
+    Route::get('/bookings/{booking}/invoice/download', [InvoiceController::class, 'download']);
 
     Route::get('/cart', [CartController::class, 'show']);
     Route::post('/cart/items', [CartController::class, 'addItem']);
@@ -123,6 +132,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/partner/promotions', [PartnerPromotionController::class, 'store']);
     Route::put('/partner/promotions/{id}', [PartnerPromotionController::class, 'update']);
     Route::delete('/partner/promotions/{id}', [PartnerPromotionController::class, 'destroy']);
+
+    Route::get('/partner/refund-requests', [PartnerRefundController::class, 'index']);
+    Route::post('/partner/refund-requests/{id}/status', [PartnerRefundController::class, 'update']);
 });
 
 // Admin routes

@@ -16,10 +16,13 @@ class UnderbookedTourCancellationMail extends Mailable
 
     public Collection $alternativeSchedules;
 
-    public function __construct(Booking $booking, Collection $alternativeSchedules)
+    public Collection $vouchers;
+
+    public function __construct(Booking $booking, Collection $alternativeSchedules, Collection $vouchers)
     {
         $this->booking = $booking;
         $this->alternativeSchedules = $alternativeSchedules;
+        $this->vouchers = $vouchers;
     }
 
     public function build(): self
@@ -32,7 +35,7 @@ class UnderbookedTourCancellationMail extends Mailable
                 'tour' => $tour,
                 'schedule' => $this->booking->tourSchedule,
                 'alternatives' => $this->alternativeSchedules,
+                'vouchers' => $this->vouchers,
             ]);
     }
 }
-
