@@ -134,20 +134,9 @@ class InvoiceController extends Controller
             return response()->json(['message' => 'Invoice file missing.'], 404);
         }
 
-        return $disk->download($invoice->file_path, $invoice->invoice_number . '.pdf');
-    }
+        $path = storage_path('app/public/' . ltrim($invoice->file_path, '/'));
 
-    private function generateInvoiceNumber(string $partnerId): string
-    {
-        $prefix = now()->format('Ymd');
-        $count = Invoice::where('partner_id', $partnerId)
-            ->whereDate('issued_at', now()->toDateString())
-            ->count();
-
-        return sprintf('INV-%s-%04d', $prefix, $count + 1);
-    }
-}
-        ]);
+        return response()->download($path, $invoice->invoice_number . '.pdf');
     }
 
     private function generateInvoiceNumber(string $partnerId): string

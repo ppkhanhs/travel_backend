@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\Partner\RefundController as PartnerRefundController
 use App\Http\Controllers\Api\RefundController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\ChatController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\Admin\AdminAccountController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
@@ -59,6 +60,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::get('/recommendations', [RecommendationController::class, 'index']);
     Route::get('/recent-tours', [RecentTourController::class, 'index']);
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAll']);
+    Route::post('/notifications/toggle', [NotificationController::class, 'toggle']);
 
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::post('/bookings', [BookingController::class, 'store']);

@@ -30,6 +30,7 @@ class User extends Authenticatable
         'password',
         'role',
         'status',
+        'notifications_enabled',
     ];
 
     /**
@@ -50,6 +51,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'phone_verified_at' => 'datetime',
+        'notifications_enabled' => 'boolean',
     ];
 
     protected $keyType = 'string';      // id là string (UUID)
