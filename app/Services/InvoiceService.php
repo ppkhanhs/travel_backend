@@ -5,12 +5,19 @@ namespace App\Services;
 use App\Mail\InvoiceIssuedMail;
 use App\Models\Booking;
 use App\Models\Invoice;
+use App\Notifications\InvoiceIssuedNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
+use App\Services\NotificationService;
+
 class InvoiceService
 {
+    public function __construct(private NotificationService $notifications)
+    {
+    }
+
     public function buildLineItems(Booking $booking): array
     {
         $items = [];
@@ -83,5 +90,13 @@ class InvoiceService
         Mail::to($invoice->customer_email)->send(new InvoiceIssuedMail($invoice));
         $invoice->emailed_at = now();
         $invoice->save();
+
+        $this->notifyIssued($invoice);
+    }
+
+    public function notifyIssued(Invoice $invoice): void
+    {
+        $user = $invoice->booking?->user;
+        $this->notifications->notify($user, new InvoiceIssuedNotification($invoice));
     }
 }

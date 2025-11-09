@@ -93,6 +93,8 @@ class InvoiceController extends Controller
 
         if ($deliveryMethod === 'email') {
             $this->invoiceService->emailInvoice($invoice);
+        } else {
+            $this->invoiceService->notifyIssued($invoice);
         }
 
         return response()->json([

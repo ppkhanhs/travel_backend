@@ -9,8 +9,15 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+use App\Notifications\VoucherIssuedNotification;
+use App\Services\NotificationService;
+
 class PromotionAssignmentService
 {
+    public function __construct(private NotificationService $notifications)
+    {
+    }
+
     public function issueVoucher(Promotion $promotion, ?string $userId, ?string $bookingId = null, array $metadata = []): PromotionAssignment
     {
         $this->guardAvailability($promotion);
@@ -26,7 +33,13 @@ class PromotionAssignmentService
             'metadata' => $metadata,
         ]);
 
-        return $assignment->load('promotion');
+        $assignment = $assignment->load(['promotion', 'user']);
+
+        if ($assignment->user) {
+            $this->notifications->notify($assignment->user, new VoucherIssuedNotification($assignment));
+        }
+
+        return $assignment;
     }
 
     public function issueAutoCancelVoucher(Booking $booking): ?PromotionAssignment

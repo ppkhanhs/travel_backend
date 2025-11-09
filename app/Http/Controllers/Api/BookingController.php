@@ -154,7 +154,10 @@ class BookingController extends Controller
                 ->getAutoPromotionsForTour($tour->id, $tour->partner_id, Carbon::parse($schedule->start_date))
                 ->all();
 
-            $promotionChain = array_merge($autoPromotions, $promotion ? [$promotion] : []);
+            $promotionChain = array_merge(
+                $autoPromotions,
+                $promotion ? [$promotion] : []
+            );
             [$totalPrice, $promotionDetails] = $this->calculatePromotionDiscount($subTotal, $promotionChain);
 
             $booking = Booking::create([
@@ -365,25 +368,39 @@ class BookingController extends Controller
         return $promotion;
     }
 
-    private function calculatePromotionDiscount(float $amount, ?Promotion $promotion): array
+    private function calculatePromotionDiscount(float $amount, array $promotions): array
     {
-        if (!$promotion || $amount <= 0) {
-            return [round($amount, 2), 0.0];
+        $remaining = round($amount, 2);
+        $applied = [];
+
+        foreach ($promotions as $promotion) {
+            if (!$promotion instanceof Promotion || $remaining <= 0) {
+                continue;
+            }
+
+            $type = strtolower($promotion->discount_type ?? '');
+
+            if (in_array($type, ['percent', 'percentage'], true)) {
+                $discount = round($remaining * ($promotion->value / 100), 2);
+            } else {
+                $discount = (float) $promotion->value;
+            }
+
+            $discount = max(0.0, min($remaining, $discount));
+
+            if ($discount <= 0) {
+                continue;
+            }
+
+            $remaining = round($remaining - $discount, 2);
+
+            $applied[] = [
+                'promotion' => $promotion,
+                'discount' => $discount,
+            ];
         }
 
-        $discount = 0.0;
-        $type = strtolower($promotion->discount_type ?? '');
-
-        if (in_array($type, ['percent', 'percentage'], true)) {
-            $discount = round($amount * ($promotion->value / 100), 2);
-        } else {
-            $discount = (float) $promotion->value;
-        }
-
-        $discount = max(0.0, min($amount, $discount));
-        $total = round($amount - $discount, 2);
-
-        return [$total, $discount];
+        return [$remaining, $applied];
     }
 
     private function hasSepayQrConfig(): bool

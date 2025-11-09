@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\RefundRequest;
+use App\Notifications\RefundRequestCreatedNotification;
+use App\Notifications\RefundRequestUpdatedNotification;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +16,9 @@ use Illuminate\Validation\ValidationException;
 
 class RefundController extends Controller
 {
+    public function __construct(private NotificationService $notifications)
+    {
+    }
     public function index(Request $request): JsonResponse
     {
         $requests = RefundRequest::query()
@@ -92,6 +98,9 @@ class RefundController extends Controller
             'status' => 'pending_partner',
         ]);
 
+        $refund->load(['partner.user']);
+        $this->notifications->notify($refund->partner?->user, new RefundRequestCreatedNotification($refund));
+
         return response()->json([
             'message' => 'Refund request submitted successfully.',
             'refund_request' => $refund->fresh(),
@@ -114,6 +123,8 @@ class RefundController extends Controller
         $refund->status = 'completed';
         $refund->customer_confirmed_at = now();
         $refund->save();
+
+        $this->notifications->notify($refund->partner?->user, new RefundRequestUpdatedNotification($refund));
 
         return response()->json([
             'message' => 'Thank you! Refund has been confirmed.',

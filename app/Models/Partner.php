@@ -25,6 +25,11 @@ class Partner extends Model
         'tax_code',
         'address',
         'status',
+        'invoice_company_name',
+        'invoice_tax_code',
+        'invoice_address',
+        'invoice_email',
+        'invoice_vat_rate',
     ];
 
     public $timestamps = false;

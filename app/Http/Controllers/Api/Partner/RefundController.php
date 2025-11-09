@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\Partner;
 
 use App\Http\Controllers\Controller;
 use App\Models\RefundRequest;
+use App\Notifications\RefundRequestUpdatedNotification;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +16,9 @@ use Illuminate\Validation\ValidationException;
 
 class RefundController extends Controller
 {
+    public function __construct(private NotificationService $notifications)
+    {
+    }
     public function index(Request $request): JsonResponse
     {
         $partner = $this->getAuthenticatedPartner();
@@ -73,6 +78,10 @@ class RefundController extends Controller
             $refund->save();
         });
 
+        $refund->refresh();
+        $refund->load('user');
+        $this->notifications->notify($refund->user, new RefundRequestUpdatedNotification($refund));
+
         return response()->json([
             'message' => 'Refund request updated successfully.',
             'refund_request' => $refund->fresh(),
@@ -97,4 +106,3 @@ class RefundController extends Controller
         return $partner;
     }
 }
-
