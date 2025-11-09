@@ -4,6 +4,7 @@ namespace App\Listeners;
 
 use App\Models\Booking;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use SePay\SePay\Events\SePayWebhookEvent;
 
 class SepayTransferListener
@@ -16,16 +17,19 @@ class SepayTransferListener
             return;
         }
 
-        $bookingId = $event->info;
+        $bookingId = $this->extractBookingId(
+            $event->info ?? null,
+            $data->description ?? null,
+            $data->content ?? null
+        );
 
-        if (!$bookingId) {
-            $content = (string) ($data->description ?? $data->content ?? '');
-            if (preg_match('/BOOKING-([a-f0-9\-]+)/i', $content, $matches)) {
-                $bookingId = $matches[1];
-            } else {
-                Log::info('[Sepay QR] Không tìm thấy mã booking trong nội dung giao dịch.', ['content' => $content]);
-                return;
-            }
+        if (!$bookingId || !Str::isUuid($bookingId)) {
+            Log::warning('[Sepay QR] Không tìm thấy mã booking hợp lệ trong nội dung webhook.', [
+                'info' => $event->info ?? null,
+                'description' => $data->description ?? null,
+                'content' => $data->content ?? null,
+            ]);
+            return;
         }
 
         $booking = Booking::with('payments')->find($bookingId);
@@ -39,7 +43,7 @@ class SepayTransferListener
         $actualAmount = (int) ($data->transferAmount ?? 0);
 
         if ($expectedAmount > 0 && $actualAmount !== $expectedAmount) {
-            Log::warning('[Sepay QR] Số tiền không khớp.', [
+            Log::warning('[Sepay QR] Số tiền chuyển không khớp.', [
                 'booking_id' => $bookingId,
                 'expected' => $expectedAmount,
                 'actual' => $actualAmount,
@@ -62,5 +66,33 @@ class SepayTransferListener
 
         $booking->payment_status = 'paid';
         $booking->save();
+    }
+
+    private function extractBookingId(?string ...$sources): ?string
+    {
+        foreach ($sources as $source) {
+            if (!$source) {
+                continue;
+            }
+
+            if (preg_match('/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i', $source, $matches)) {
+                return Str::lower($matches[1]);
+            }
+
+            if (preg_match('/([0-9a-f]{32})/i', $source, $matches)) {
+                $hex = strtolower($matches[1]);
+
+                return sprintf(
+                    '%s-%s-%s-%s-%s',
+                    substr($hex, 0, 8),
+                    substr($hex, 8, 4),
+                    substr($hex, 12, 4),
+                    substr($hex, 16, 4),
+                    substr($hex, 20, 12)
+                );
+            }
+        }
+
+        return null;
     }
 }
