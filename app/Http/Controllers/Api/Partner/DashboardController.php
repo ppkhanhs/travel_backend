@@ -88,10 +88,22 @@ class DashboardController extends Controller
                     ->whereIn('bookings.status', ['pending', 'confirmed']);
             })
             ->select(
-                'tour_schedules.*',
+                'tour_schedules.id',
+                'tour_schedules.tour_id',
+                'tour_schedules.start_date',
+                'tour_schedules.end_date',
+                'tour_schedules.seats_total',
+                'tour_schedules.seats_available',
                 DB::raw('COALESCE(SUM(bookings.total_adults + bookings.total_children), 0) as passengers')
             )
-            ->groupBy('tour_schedules.id')
+            ->groupBy(
+                'tour_schedules.id',
+                'tour_schedules.tour_id',
+                'tour_schedules.start_date',
+                'tour_schedules.end_date',
+                'tour_schedules.seats_total',
+                'tour_schedules.seats_available'
+            )
             ->orderBy('tour_schedules.start_date')
             ->limit(5)
             ->get()
