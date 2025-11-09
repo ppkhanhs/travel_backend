@@ -92,7 +92,7 @@ class BookingController extends Controller
         $data['children'] = $data['children'] ?? 0;
         $totalRequested = $data['adults'] + $data['children'];
 
-        if ($data['payment_method'] === 'sepay' && !$this->sepay->isEnabled() && !$this->hasSepayQrConfig()) {
+        if ($data['payment_method'] === 'sepay' && !$this->sepay->isEnabled() && !$this->sepay->hasStaticQrConfig()) {
             throw ValidationException::withMessages([
                 'payment_method' => ['Sepay has not been configured. Please choose offline payment or contact support.'],
             ]);
@@ -151,7 +151,11 @@ class BookingController extends Controller
             $subTotal = $adultPrice * $data['adults'] + $childPrice * $data['children'];
 
             $autoPromotions = $this->autoPromotions
-                ->getAutoPromotionsForTour($tour->id, $tour->partner_id, Carbon::parse($schedule->start_date))
+                ->getAutoPromotionsForTour(
+                    $tour->id,
+                    $tour->partner_id,
+                    now()
+                )
                 ->all();
 
             $promotionChain = array_merge(
@@ -216,8 +220,8 @@ class BookingController extends Controller
 
                 if ($this->sepay->isEnabled()) {
                     $paymentUrl = $this->sepay->createPaymentLink($payment, $booking, $notifyUrl, config('sepay.return_url'));
-                } elseif ($this->hasSepayQrConfig()) {
-                    $paymentQrUrl = $this->buildSepayQrUrl($booking, $payment);
+                } elseif ($this->sepay->hasStaticQrConfig()) {
+                    $paymentQrUrl = $this->sepay->buildStaticQrUrl($booking, $payment);
                     $paymentUrl = $paymentQrUrl;
                 }
             }
@@ -257,9 +261,9 @@ class BookingController extends Controller
         }
 
         $appliedPolicy = null;
-        $totalRefund = 0.0;
+        $refundRate = 0.0;
 
-        DB::transaction(function () use ($booking, &$appliedPolicy, &$totalRefund) {
+        DB::transaction(function () use ($booking, &$appliedPolicy, &$refundRate) {
             $schedule = TourSchedule::with(['tour.cancellationPolicies' => function ($query) {
                 $query->orderByDesc('days_before');
             }])->where('id', $booking->tour_schedule_id)
@@ -305,20 +309,19 @@ class BookingController extends Controller
             }
 
             $refundRate = max(0, min(100, $appliedPolicy->refund_rate ?? 0));
-            $ratio = $refundRate / 100;
-
-            $booking->payment_status = $refundRate > 0 ? 'refunded' : 'unpaid';
             $booking->save();
-
-            $booking->payments->each(function (Payment $payment) use ($ratio, &$totalRefund) {
-                $baseAmount = $payment->total_amount ?? $payment->amount ?? 0;
-                $refundAmount = round($baseAmount * $ratio, 2);
-                $payment->status = 'refunded';
-                $payment->refund_amount = $refundAmount;
-                $payment->save();
-                $totalRefund += $refundAmount;
-            });
         });
+
+        $totalRefund = 0.0;
+        if ($refundRate > 0 && $booking->relationLoaded('payments')) {
+            $ratio = $refundRate / 100;
+            $totalRefund = $booking->payments
+                ->where('status', 'success')
+                ->sum(function (Payment $payment) use ($ratio) {
+                    $baseAmount = (float) ($payment->total_amount ?? $payment->amount ?? 0);
+                    return round($baseAmount * $ratio, 2);
+                });
+        }
 
         $booking->promotions()->detach();
 
@@ -401,36 +404,6 @@ class BookingController extends Controller
         }
 
         return [$remaining, $applied];
-    }
-
-    private function hasSepayQrConfig(): bool
-    {
-        return !empty(config('sepay.account')) && !empty(config('sepay.bank'));
-    }
-
-    private function buildSepayQrUrl(Booking $booking, Payment $payment): ?string
-    {
-        $account = config('sepay.account');
-        $bank = config('sepay.bank');
-        $baseUrl = rtrim(config('sepay.qr_url', 'https://qr.sepay.vn/img'), '/');
-
-        if (!$account || !$bank) {
-            return null;
-        }
-
-        $amount = (int) round($payment->amount ?? $booking->total_price ?? 0);
-        $pattern = (string) config('sepay.pattern', 'BOOKING-');
-        $description = sprintf('%s%s', $pattern, $booking->id);
-
-        $query = http_build_query([
-            'acc' => $account,
-            'bank' => $bank,
-            'amount' => $amount,
-            'des' => $description,
-            'template' => 'compact',
-        ]);
-
-        return sprintf('%s?%s', $baseUrl, $query);
     }
 
     private function ensurePassengerRules(Tour $tour, TourSchedule $schedule, array $passengers): void

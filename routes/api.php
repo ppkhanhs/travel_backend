@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
     Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
     Route::get('/bookings/{id}/payment-status', [PaymentController::class, 'status']);
+    Route::post('/bookings/{booking}/pay-later', [PaymentController::class, 'payLater']);
     Route::post('/bookings/{booking}/refund-request', [RefundController::class, 'store']);
     Route::get('/refund-requests', [RefundController::class, 'index']);
     Route::post('/refund-requests/{id}/confirm', [RefundController::class, 'confirm']);

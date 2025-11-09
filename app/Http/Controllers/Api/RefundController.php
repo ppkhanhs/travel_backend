@@ -12,6 +12,7 @@ use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class RefundController extends Controller
@@ -120,9 +121,42 @@ class RefundController extends Controller
             ]);
         }
 
-        $refund->status = 'completed';
-        $refund->customer_confirmed_at = now();
-        $refund->save();
+        DB::transaction(function () use ($refund) {
+            $refund->status = 'completed';
+            $refund->customer_confirmed_at = now();
+            $refund->save();
+
+            $booking = Booking::query()
+                ->with('payments')
+                ->lockForUpdate()
+                ->find($refund->booking_id);
+
+            if ($booking) {
+                $booking->payment_status = 'refunded';
+                $booking->save();
+
+                $remaining = max(0, (float) ($refund->amount ?? 0));
+
+                foreach ($booking->payments as $payment) {
+                    if (!in_array($payment->status, ['success', 'pending'], true)) {
+                        continue;
+                    }
+
+                    $baseAmount = (float) ($payment->total_amount ?? $payment->amount ?? 0);
+                    if ($baseAmount <= 0) {
+                        continue;
+                    }
+
+                    $applied = $remaining > 0 ? min($baseAmount, $remaining) : $baseAmount;
+
+                    $payment->status = 'refunded';
+                    $payment->refund_amount = round($applied, 2);
+                    $payment->save();
+
+                    $remaining = max(0, $remaining - $applied);
+                }
+            }
+        });
 
         $this->notifications->notify($refund->partner?->user, new RefundRequestUpdatedNotification($refund));
 

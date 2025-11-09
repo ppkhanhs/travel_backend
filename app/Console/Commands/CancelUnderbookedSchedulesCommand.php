@@ -80,7 +80,7 @@ class CancelUnderbookedSchedulesCommand extends Command
 
                 foreach ($currentBookings as $booking) {
                     $releasedSeats += (int) $booking->total_adults + (int) $booking->total_children;
-                    $this->cancelBookingWithRefund($booking);
+                    $this->cancelBooking($booking);
                     $notifiedBookings->push($booking);
                 }
 
@@ -154,19 +154,11 @@ class CancelUnderbookedSchedulesCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function cancelBookingWithRefund(Booking $booking): void
+    private function cancelBooking(Booking $booking): void
     {
         $booking->status = 'cancelled';
-        $booking->payment_status = 'refunded';
         $booking->notes = trim(($booking->notes ? $booking->notes . PHP_EOL : '') . '[System] Cancelled due to insufficient participants.');
         $booking->save();
-
-        foreach ($booking->payments as $payment) {
-            $amount = (float) ($payment->total_amount ?? $payment->amount ?? 0);
-            $payment->status = 'refunded';
-            $payment->refund_amount = $amount;
-            $payment->save();
-        }
     }
 
     private function fetchAlternativeSchedules(TourSchedule $schedule): Collection

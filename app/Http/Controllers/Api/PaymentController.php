@@ -141,6 +141,80 @@ class PaymentController extends Controller
         ]);
     }
 
+    public function payLater(Request $request, string $bookingId): JsonResponse
+    {
+        $booking = Booking::with('payments', 'user')
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($bookingId);
+
+        if ($booking->status === 'cancelled') {
+            return response()->json([
+                'message' => 'Booking has been cancelled and cannot be paid.',
+            ], 422);
+        }
+
+        if (in_array($booking->payment_status, ['paid', 'refunded'], true)) {
+            return response()->json([
+                'message' => 'This booking does not require additional payment.',
+            ], 422);
+        }
+
+        if (!$this->sepay->isEnabled() && !$this->sepay->hasStaticQrConfig()) {
+            return response()->json([
+                'message' => 'Sepay is not configured. Please contact support.',
+            ], 422);
+        }
+
+        $paidAmount = $booking->payments
+            ->where('status', 'success')
+            ->sum(function (Payment $payment) {
+                return (float) $payment->amount;
+            });
+
+        $outstanding = round(max(0, ($booking->total_price ?? 0) - $paidAmount), 2);
+
+        if ($outstanding <= 0) {
+            return response()->json([
+                'message' => 'Booking balance is already settled.',
+            ], 422);
+        }
+
+        $payment = Payment::create([
+            'booking_id' => $booking->id,
+            'method' => 'sepay',
+            'amount' => $outstanding,
+            'tax' => 0,
+            'total_amount' => $outstanding,
+            'status' => 'pending',
+        ]);
+
+        $paymentUrl = null;
+        $paymentQrUrl = null;
+        $notifyUrl = route('payments.sepay.webhook');
+
+        if ($this->sepay->isEnabled()) {
+            $paymentUrl = $this->sepay->createPaymentLink($payment, $booking, $notifyUrl, config('sepay.return_url'));
+        } else {
+            $paymentQrUrl = $this->sepay->buildStaticQrUrl($booking, $payment);
+            $paymentUrl = $paymentQrUrl;
+        }
+
+        $booking->payment_status = 'pending';
+        $booking->save();
+
+        return response()->json([
+            'message' => 'Payment link generated successfully.',
+            'payment' => [
+                'id' => $payment->id,
+                'method' => $payment->method,
+                'status' => $payment->status,
+                'amount' => $payment->amount,
+            ],
+            'payment_url' => $paymentUrl,
+            'payment_qr_url' => $paymentQrUrl,
+        ]);
+    }
+
     private function isBankTransferPayload(array $payload): bool
     {
         return isset($payload['transferAmount'], $payload['transferType']) &&

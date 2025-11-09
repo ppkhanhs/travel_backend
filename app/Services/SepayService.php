@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\Payment;
-use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 
@@ -14,6 +13,10 @@ class SepayService
     private string $apiKey;
     private string $checksumKey;
     private string $paymentUrl;
+    private string $staticAccount;
+    private string $staticBank;
+    private string $staticQrBaseUrl;
+    private string $staticDescriptionPattern;
 
     public function __construct()
     {
@@ -21,6 +24,10 @@ class SepayService
         $this->apiKey = (string) (config('sepay.api_key') ?? '');
         $this->checksumKey = (string) (config('sepay.checksum_key') ?? '');
         $this->paymentUrl = rtrim((string) (config('sepay.payment_url') ?? ''), '/');
+        $this->staticAccount = (string) (config('sepay.account') ?? '');
+        $this->staticBank = (string) (config('sepay.bank') ?? '');
+        $this->staticQrBaseUrl = rtrim((string) (config('sepay.qr_url', 'https://qr.sepay.vn/img') ?? ''), '/');
+        $this->staticDescriptionPattern = (string) (config('sepay.pattern', 'BOOKING-') ?? 'BOOKING-');
     }
 
     public function isEnabled(): bool
@@ -83,5 +90,30 @@ class SepayService
     public function log(string $message, array $context = []): void
     {
         Log::channel(config('sepay.log_channel', 'stack'))->info('[Sepay] ' . $message, $context);
+    }
+
+    public function hasStaticQrConfig(): bool
+    {
+        return $this->staticAccount !== '' && $this->staticBank !== '' && $this->staticQrBaseUrl !== '';
+    }
+
+    public function buildStaticQrUrl(Booking $booking, Payment $payment): ?string
+    {
+        if (!$this->hasStaticQrConfig()) {
+            return null;
+        }
+
+        $amount = (int) round($payment->amount ?? $booking->total_price ?? 0);
+        $description = sprintf('%s%s', $this->staticDescriptionPattern, $booking->id);
+
+        $query = http_build_query([
+            'acc' => $this->staticAccount,
+            'bank' => $this->staticBank,
+            'amount' => $amount,
+            'des' => $description,
+            'template' => 'compact',
+        ]);
+
+        return sprintf('%s?%s', $this->staticQrBaseUrl, $query);
     }
 }
