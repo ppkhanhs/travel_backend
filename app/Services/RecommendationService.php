@@ -25,6 +25,8 @@ class RecommendationService
     ];
 
     private const HALF_LIFE_DAYS = 14;
+    private const REFRESH_EVENT_THRESHOLD = 2;
+    private const REFRESH_STALE_MINUTES = 30;
     private const COMPONENT_WEIGHTS = [
         'cf' => 0.6,
         'content' => 0.3,
@@ -54,7 +56,7 @@ class RecommendationService
     {
         $record = $user->recommendation;
 
-        if (!$record || empty($record->recommendations)) {
+        if ($this->shouldRefreshRecommendations($user, $record)) {
             $record = $this->generateForUser($user, max($limit, 20));
         }
 
@@ -482,6 +484,28 @@ class RecommendationService
         return $popularities->map(function ($item) use ($max) {
             return $max > 0 ? $item->score / $max : 0;
         })->all();
+    }
+
+    private function shouldRefreshRecommendations(User $user, ?UserRecommendation $record): bool
+    {
+        if (!$record || empty($record->recommendations)) {
+            return true;
+        }
+
+        $generatedAt = $record->generated_at;
+
+        if (!$generatedAt || $generatedAt->lte(now()->subMinutes(self::REFRESH_STALE_MINUTES))) {
+            return true;
+        }
+
+        $newEvents = AnalyticsEvent::query()
+            ->where('user_id', $user->id)
+            ->whereIn('event_name', array_keys(self::EVENT_WEIGHTS))
+            ->when($generatedAt, fn ($query) => $query->where('occurred_at', '>', $generatedAt))
+            ->limit(self::REFRESH_EVENT_THRESHOLD)
+            ->count();
+
+        return $newEvents >= self::REFRESH_EVENT_THRESHOLD;
     }
 
     private function buildUserContext(User $user): array
