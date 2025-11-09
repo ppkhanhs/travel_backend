@@ -180,7 +180,8 @@ class TourController extends Controller
         $tour->setAttribute('rating_average', (float) ($stats->rating_average ?? 0));
         $tour->setAttribute('rating_count', (int) ($stats->rating_count ?? 0));
 
-        $this->recentViews->recordView($request->user(), $tour);
+        $authenticatedUser = $request->user('sanctum') ?? $request->user();
+        $this->recentViews->recordView($authenticatedUser, $tour);
         $this->autoPromotions->attachToTours(collect([$tour]));
 
         return response()->json($tour);

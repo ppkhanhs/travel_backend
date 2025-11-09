@@ -184,7 +184,6 @@ class PaymentController extends Controller
             'method' => 'sepay',
             'amount' => $outstanding,
             'tax' => 0,
-            'total_amount' => $outstanding,
             'status' => 'pending',
         ]);
 
