@@ -64,7 +64,12 @@ class DashboardController extends Controller
             ->where('bookings.payment_status', 'paid')
             ->sum('bookings.total_price');
 
-        $dailyRevenue = (clone $rangePaid)
+        $dailyRevenue = Booking::query()
+            ->join('tour_schedules', 'bookings.tour_schedule_id', '=', 'tour_schedules.id')
+            ->join('tours', 'tour_schedules.tour_id', '=', 'tours.id')
+            ->where('tours.partner_id', $partner->id)
+            ->where('bookings.booking_date', '>=', $since)
+            ->where('bookings.payment_status', 'paid')
             ->selectRaw('DATE(bookings.booking_date) as date')
             ->selectRaw('SUM(bookings.total_price) as revenue')
             ->selectRaw('COUNT(bookings.id) as bookings')
