@@ -74,7 +74,7 @@ class PromotionController extends Controller
         }
 
         $isAuto = $data['type'] === 'auto';
-        $code = $data['code'] ?? ($isAuto ? null : $this->generateCode($partner->id));
+        $code = $this->resolvePromotionCode($data['code'] ?? null, $partner->id, $isAuto);
 
         $promotion = Promotion::create([
             'code' => $code,
@@ -206,8 +206,25 @@ class PromotionController extends Controller
         return $partner;
     }
 
-    private function generateCode(string $partnerId): string
+    private function resolvePromotionCode(?string $rawCode, string $partnerId, bool $isAuto): string
     {
-        return sprintf('AUTO-%s', Str::upper(Str::random(8)));
+        $code = is_string($rawCode) ? trim($rawCode) : '';
+
+        if ($code !== '') {
+            return $code;
+        }
+
+        return $this->generateCode($partnerId, $isAuto);
+    }
+
+    private function generateCode(string $partnerId, bool $isAuto = false): string
+    {
+        $prefix = $isAuto ? 'AUTO' : 'VCH';
+
+        do {
+            $code = sprintf('%s-%s', $prefix, Str::upper(Str::random(8)));
+        } while (Promotion::query()->where('code', $code)->exists());
+
+        return $code;
     }
 }

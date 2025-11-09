@@ -125,9 +125,14 @@ class AutoPromotionService
             ->whereIn('id', $promotionIds)
             ->where('auto_apply', true)
             ->where('is_active', true)
-            ->when($partnerId, fn ($q) => $q->where('partner_id', $partnerId))
             ->get()
-            ->filter(fn (Promotion $promotion) => $promotion->isActiveAt($date))
+            ->filter(function (Promotion $promotion) use ($date, $partnerId) {
+                if ($partnerId && $promotion->partner_id && $promotion->partner_id !== $partnerId) {
+                    return false;
+                }
+
+                return $promotion->isActiveAt($date);
+            })
             ->values();
     }
 
