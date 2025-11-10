@@ -25,10 +25,10 @@ class ChatController extends Controller
     {
         $data = $request->validate([
             'message' => 'required|string|max:2000',
-            'language' => 'nullable|in:vi,en',
+            'language' => 'nullable|string',
         ]);
 
-        $language = $data['language'] ?? 'vi';
+        $language = $this->normalizeLanguage($data['language'] ?? 'vi');
         $user = $request->user();
 
         $tours = $this->getCandidateTours($user);
@@ -49,6 +49,17 @@ class ChatController extends Controller
             'reply' => $reply,
             'language' => $language,
         ]);
+    }
+    
+    private function normalizeLanguage(?string $lang): string
+    {
+        $lang = strtolower(trim((string) $lang));
+
+        return match ($lang) {
+            'en', 'eng', 'english', 'en-us', 'en_us' => 'en',
+            'vi', 'vie', 'vietnamese', 'vi-vn', 'vi_vn' => 'vi',
+            default => 'vi',
+        };
     }
 
     private function getCandidateTours($user)
