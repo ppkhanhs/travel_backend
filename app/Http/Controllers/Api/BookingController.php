@@ -238,7 +238,9 @@ class BookingController extends Controller
             'tourSchedule.tour.cancellationPolicies',
             'package',
             'passengers',
-            'payments' => fn ($query) => $query->latest(),
+            'payments' => fn ($query) => $query
+                ->orderByDesc('paid_at')
+                ->orderByDesc('id'),
             'user',
             'review',
             'promotions',
