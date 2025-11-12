@@ -12,12 +12,15 @@ use App\Models\Promotion;
 use App\Models\Tour;
 use App\Models\TourPackage;
 use App\Models\TourSchedule;
+use App\Services\InvoiceService;
 use App\Services\SepayService;
 use App\Services\AutoPromotionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\ValidationException;
 
@@ -25,7 +28,8 @@ class BookingController extends Controller
 {
     public function __construct(
         private SepayService $sepay,
-        private AutoPromotionService $autoPromotions
+        private AutoPromotionService $autoPromotions,
+        private InvoiceService $invoiceService
     ) {
     }
 
@@ -234,11 +238,14 @@ class BookingController extends Controller
             'tourSchedule.tour.cancellationPolicies',
             'package',
             'passengers',
-            'payments',
+            'payments' => fn ($query) => $query->latest(),
+            'user',
             'review',
             'promotions',
             'refundRequests',
         ]);
+
+        $this->sendBookingInvoiceMail($booking);
 
         return response()->json([
             'message' => 'Booking created successfully. Await partner confirmation.',
@@ -333,6 +340,78 @@ class BookingController extends Controller
                 'policy_days_before' => $appliedPolicy?->days_before,
             ],
         ]);
+    }
+
+    private function sendBookingInvoiceMail(Booking $booking): void
+    {
+        $recipient = $booking->contact_email ?: $booking->user?->email;
+
+        if (!$recipient) {
+            return;
+        }
+
+        try {
+            $lineItems = $this->invoiceService->buildLineItems($booking);
+            $subtotal = $this->invoiceService->calculateSubtotal($lineItems);
+            $total = round($booking->total_price ?? $subtotal, 2);
+            $discount = max(0, round($subtotal - $total, 2));
+            $paymentMethod = optional($booking->payments->first())->method;
+
+            $invoiceData = [
+                'line_items' => $lineItems,
+                'subtotal' => $subtotal,
+                'discount' => $discount,
+                'total' => $total,
+                'payment_method' => $paymentMethod,
+            ];
+
+            $htmlContent = view('emails.bookings.invoice', [
+                'booking' => $booking,
+                'invoice' => $invoiceData,
+            ])->render();
+
+            $brevo = config('services.brevo');
+            $apiKey = $brevo['api_key'] ?? null;
+            $senderEmail = $brevo['sender_email'] ?? null;
+            $senderName = $brevo['sender_name'] ?? config('app.name');
+
+            if (!$apiKey || !$senderEmail) {
+                Log::error('[BookingInvoiceMail] Missing Brevo credentials.');
+                return;
+            }
+
+            $response = Http::withHeaders([
+                'api-key' => $apiKey,
+                'accept' => 'application/json',
+                'content-type' => 'application/json',
+            ])->post('https://api.brevo.com/v3/smtp/email', [
+                'sender' => [
+                    'email' => $senderEmail,
+                    'name' => $senderName,
+                ],
+                'to' => [
+                    [
+                        'email' => $recipient,
+                        'name' => $booking->contact_name ?? $booking->user?->name ?? 'Customer',
+                    ],
+                ],
+                'subject' => sprintf('Xác nhận đặt tour #%s', $booking->id),
+                'htmlContent' => $htmlContent,
+            ]);
+
+            if ($response->failed()) {
+                Log::warning('Failed to send booking invoice email via Brevo', [
+                    'booking_id' => $booking->id,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to send booking invoice email', [
+                'booking_id' => $booking->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function resolvePromotion(?string $code): ?Promotion
