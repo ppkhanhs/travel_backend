@@ -48,7 +48,21 @@ class TourController extends Controller
             $query->where('partner_id', $request->partner_id);
         }
 
-        if ($request->filled('destination')) {
+        if ($request->filled('destinations')) {
+            $destinations = array_filter((array) $request->destinations);
+            if (!empty($destinations)) {
+                $query->where(function ($q) use ($destinations) {
+                    foreach ($destinations as $index => $destination) {
+                        $term = '%' . $this->escapeLike($destination) . '%';
+                        if ($index === 0) {
+                            $q->whereRaw('destination ILIKE ?', [$term]);
+                        } else {
+                            $q->orWhereRaw('destination ILIKE ?', [$term]);
+                        }
+                    }
+                });
+            }
+        } elseif ($request->filled('destination')) {
             $query->whereRaw('destination ILIKE ?', ['%' . $this->escapeLike($request->destination) . '%']);
         }
 
@@ -108,6 +122,29 @@ class TourController extends Controller
 
         if ($request->filled('duration_max')) {
             $query->where('duration', '<=', $request->integer('duration_max'));
+        }
+
+        $departureFilter = $request->get('departure');
+        if (in_array($departureFilter, ['today', 'tomorrow'], true)) {
+            $target = Carbon::today();
+            if ($departureFilter === 'tomorrow') {
+                $target->addDay();
+            }
+
+            $query->whereHas('schedules', function ($sq) use ($target) {
+                $sq->whereDate('start_date', $target->toDateString());
+            });
+        }
+
+        if ($request->filled('departure_date')) {
+            try {
+                $date = Carbon::parse($request->departure_date)->toDateString();
+                $query->whereHas('schedules', function ($sq) use ($date) {
+                    $sq->whereDate('start_date', $date);
+                });
+            } catch (\Exception $e) {
+                // ignore invalid date
+            }
         }
 
         if ($request->filled('start_date')) {
@@ -277,6 +314,28 @@ class TourController extends Controller
             )
             ->groupBy('tour_schedules.tour_id');
     }
+
+    private function bookingStatsSubquery(?int $days = null)
+    {
+        $query = DB::table('bookings')
+            ->join('tour_schedules', 'bookings.tour_schedule_id', '=', 'tour_schedules.id')
+            ->select(
+                'tour_schedules.tour_id',
+                DB::raw('COUNT(bookings.id) as bookings_count')
+            )
+            ->where(function ($q) {
+                $q->whereNull('bookings.status')
+                    ->orWhere('bookings.status', '!=', 'cancelled');
+            });
+
+        if ($days && $days > 0) {
+            $since = Carbon::now()->subDays($days);
+            $query->where('bookings.booking_date', '>=', $since);
+        }
+
+        return $query->groupBy('tour_schedules.tour_id');
+    }
 }
+
 
 
