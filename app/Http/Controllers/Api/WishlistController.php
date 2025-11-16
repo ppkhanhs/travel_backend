@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\WishlistItemResource;
 use App\Models\Tour;
-use App\Models\UserActivityLog;
 use App\Models\Wishlist;
+use App\Services\UserActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 class WishlistController extends Controller
 {
+    public function __construct(private UserActivityLogger $activityLogger)
+    {
+    }
+
     public function index(Request $request): JsonResponse
     {
         $items = Wishlist::where('user_id', $request->user()->id)
@@ -48,7 +52,7 @@ class WishlistController extends Controller
             'tour_id' => $tourId,
         ]);
 
-        $this->logUserActivity($userId, $tourId, 'wishlist');
+        $this->activityLogger->log($request->user(), $tourId, 'wishlist_add');
 
         return response()->json([
             'message' => 'Tour Ä‘Ã£ Ä‘Æ°á»£c thÃªm vÃ o danh sÃ¡ch yÃªu thÃ­ch.',
@@ -106,20 +110,6 @@ class WishlistController extends Controller
         return response()->json([
             'tours' => $tours,
         ]);
-    }
-
-    private function logUserActivity(string $userId, string $tourId, string $action): void
-    {
-        try {
-            UserActivityLog::create([
-                'user_id' => $userId,
-                'tour_id' => $tourId,
-                'action' => $action,
-                'created_at' => now(),
-            ]);
-        } catch (\Throwable $e) {
-            // ignore logging failure
-        }
     }
 
     private function attachRatingStats(array $tourIds, $tours): void

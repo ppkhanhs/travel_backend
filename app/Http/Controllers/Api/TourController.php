@@ -12,12 +12,14 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use App\Services\UserActivityLogger;
 
 class TourController extends Controller
 {
     public function __construct(
         private RecentViewService $recentViews,
-        private AutoPromotionService $autoPromotions
+        private AutoPromotionService $autoPromotions,
+        private UserActivityLogger $activityLogger
     )
     {
     }
@@ -219,6 +221,9 @@ class TourController extends Controller
 
         $authenticatedUser = $request->user('sanctum') ?? $request->user();
         $this->recentViews->recordView($authenticatedUser, $tour);
+        if ($authenticatedUser) {
+            $this->activityLogger->log($authenticatedUser, (string) $tour->id, 'tour_view');
+        }
         $this->autoPromotions->attachToTours(collect([$tour]));
 
         return response()->json($tour);

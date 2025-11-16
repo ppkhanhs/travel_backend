@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Review;
 use App\Models\Tour;
+use App\Services\UserActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 class ReviewController extends Controller
 {
+    public function __construct(private UserActivityLogger $activityLogger)
+    {
+    }
+
     public function index(Request $request, string $tourId): JsonResponse
     {
         $tour = Tour::approved()->findOrFail($tourId);
@@ -84,6 +89,11 @@ class ReviewController extends Controller
             'booking:id,tour_schedule_id',
             'booking.tourSchedule:id,tour_id,start_date',
         ]);
+
+        $tourId = $booking->tourSchedule?->tour_id;
+        if ($tourId) {
+            $this->activityLogger->log($request->user(), (string) $tourId, 'review_submitted');
+        }
 
         return response()->json([
             'message' => 'Đánh giá đã được ghi nhận.',
