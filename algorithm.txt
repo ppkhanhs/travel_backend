@@ -1,0 +1,153 @@
+
+# Hệ thống Gợi ý Lai cho Website Du lịch Đa nền tảng
+
+**Tóm tắt**
+
+Bài báo này trình bày chi tiết về kiến trúc và các thuật toán được sử dụng trong một hệ thống gợi ý lai (hybrid recommendation system) được xây dựng cho một website du lịch đa nền tảng. Mục tiêu chính của hệ thống là cung cấp những gợi ý tour du lịch được cá nhân hóa cho người dùng, qua đó nâng cao trải nghiệm người dùng, tăng cường sự tương tác và tối ưu hóa tỷ lệ chuyển đổi. Hệ thống này là sự kết hợp của nhiều phương pháp tiếp cận, bao gồm lọc cộng tác (collaborative filtering), lọc dựa trên nội dung (content-based filtering), và các phương pháp dựa trên sự phổ biến (popularity-based) để tạo ra các gợi ý vừa phù hợp, vừa đa dạng. Hệ thống bao gồm hai thành phần chính: một mô-đun huấn luyện ngoại tuyến (offline training) chịu trách nhiệm xử lý dữ liệu tương tác của người dùng để xây dựng các mô hình gợi ý, và một mô-đun phục vụ trực tuyến (online serving) cung cấp các gợi ý thời gian thực cho người dùng thông qua một API RESTful.
+
+---
+
+### **1. Giới thiệu**
+
+Sự phát triển bùng nổ của thị trường du lịch trực tuyến đã mang đến cho người dùng vô số lựa chọn, đồng thời cũng gây ra tình trạng quá tải thông tin. Để giải quyết vấn đề này và cải thiện trải nghiệm người dùng, các hệ thống gợi ý cá nhân hóa đã trở thành một thành phần không thể thiếu của các nền tảng thương mại điện tử hiện đại. Bài báo này đi sâu vào việc triển khai một hệ thống như vậy cho một website chuyên về tour du lịch. Mục tiêu cốt lõi là dự đoán sở thích của người dùng đối với một tour du lịch cụ thể và trình bày cho họ một danh sách các gợi ý được xếp hạng một cách thông minh.
+
+Hệ thống của chúng tôi áp dụng một phương pháp lai, kết hợp ưu điểm của nhiều kỹ thuật gợi ý khác nhau để khắc phục những nhược điểm cố hữu của từng phương pháp khi hoạt động riêng lẻ. Ví dụ, hệ thống giải quyết hiệu quả "vấn đề khởi đầu nguội" (cold start problem) - tình huống không có đủ dữ liệu về người dùng mới hoặc các tour mới - bằng cách dựa vào các gợi ý dựa trên nội dung và sự phổ biến. Cách tiếp cận này đảm bảo rằng mọi người dùng, dù mới hay cũ, đều nhận được những gợi ý có giá trị ngay từ lần tương tác đầu tiên.
+
+Các nghiên cứu gần đây, chẳng hạn như "Hybrid Recommender System for E-Commerce: A Comprehensive Review and Future Directions" (2023), đã chỉ ra rằng các hệ thống lai mang lại hiệu suất vượt trội so với các hệ thống đơn lẻ trong môi trường thương mại điện tử. Hệ thống của chúng tôi được xây dựng dựa trên những nguyên tắc này, nhằm mang lại một giải pháp mạnh mẽ và linh hoạt.
+
+---
+
+### **2. Kiến trúc hệ thống**
+
+Hệ thống gợi ý được thiết kế theo kiến trúc mô-đun, bao gồm hai hệ thống con chính hoạt động độc lập nhưng phối hợp chặt chẽ với nhau:
+
+*   **Hệ thống con Huấn luyện Ngoại tuyến (Offline Training Subsystem):**
+    *   **Chức năng:** Chịu trách nhiệm xử lý một lượng lớn dữ liệu lịch sử và huấn luyện các mô hình gợi ý. Quá trình này bao gồm việc thu thập dữ liệu tương tác, tiền xử lý, và chạy các thuật toán học máy để tạo ra các "embeddings" (vector đặc trưng) cho người dùng và tour.
+    *   **Triển khai:** Được triển khai dưới dạng một tác vụ dòng lệnh (command-line task) trong framework Laravel: `php artisan recommendations:train`. Tác vụ này có thể được lên lịch để chạy định kỳ (ví dụ: hàng ngày) bằng cron job. Việc tách biệt quá trình huấn luyện nặng nề ra khỏi luồng xử lý trực tuyến đảm bảo hiệu suất của website không bị ảnh hưởng.
+    *   **Kết quả:** Đầu ra của quá trình này là các mô hình và dữ liệu đã được huấn luyện (ví dụ: các vector đặc trưng của người dùng và tour, ma trận TF-IDF) được lưu trữ trong cơ sở dữ liệu (bảng `recommendation_embeddings`).
+
+*   **Hệ thống con Phục vụ Trực tuyến (Online Serving Subsystem):**
+    *   **Chức năng:** Là một dịch vụ thời gian thực, chịu trách nhiệm tạo ra các gợi ý cho một người dùng cụ thể ngay khi có yêu cầu. Dịch vụ này được thiết kế để có độ trễ cực thấp, đảm bảo trải nghiệm người dùng mượt mà.
+    *   **Triển khai:** Được cung cấp thông qua một API endpoint (`/api/recommendations`). Khi người dùng truy cập vào các trang cần gợi ý, frontend sẽ gọi đến API này để lấy danh sách các tour phù hợp.
+    *   **Luồng hoạt động:** Dịch vụ này sẽ tải các mô hình đã được huấn luyện từ cơ sở dữ liệu, kết hợp chúng theo một quy trình (pipeline) được định sẵn để tạo ra danh sách gợi ý cuối cùng, sau đó áp dụng các quy tắc nghiệp vụ và trả về kết quả.
+
+---
+
+### **3. Phương pháp và Thuật toán**
+
+Hệ thống tạo ra danh sách gợi ý cuối cùng bằng cách xây dựng một quy trình kết hợp các ứng cử viên từ nhiều nguồn thuật toán khác nhau.
+
+#### **3.1. Thu thập và Xử lý Dữ liệu**
+
+Hệ thống thu thập các tín hiệu phản hồi ngầm (implicit feedback) từ người dùng để hiểu được sở thích của họ. Các tín hiệu này bao gồm:
+
+*   **Lượt xem tour (`tour_view`):** Một người dùng xem chi tiết một tour được coi là một tín hiệu quan tâm.
+*   **Thêm vào danh sách yêu thích (`wishlist_add`):** Một tín hiệu quan tâm mạnh mẽ.
+*   **Thêm vào giỏ hàng (`cart_add`):** Một tín hiệu cho thấy ý định mua hàng.
+*   **Đặt tour thành công (`booking_success`):** Tín hiệu quan tâm mạnh nhất.
+*   **Gửi đánh giá (`review_submit`):** Cho thấy người dùng đã trải nghiệm và có ý kiến về tour.
+
+Mỗi loại tương tác được gán một trọng số (`EVENT_WEIGHTS`) để phản ánh mức độ quan trọng của nó. Ví dụ, một lượt đặt tour thành công có trọng số cao hơn nhiều so với một lượt xem.
+
+Ngoài ra, hệ thống còn áp dụng **hàm suy giảm theo thời gian (time decay function)** để giảm giá trị của các tương tác cũ. Điều này đảm bảo rằng các sở thích gần đây của người dùng sẽ có ảnh hưởng lớn hơn đến các gợi ý. Công thức suy giảm được sử dụng là hàm nửa chu kỳ (half-life decay):
+
+```
+decay_factor = 0.5 ^ (days_passed / HALF_LIFE_DAYS)
+```
+
+Trong đó `HALF_LIFE_DAYS` là số ngày mà sau đó trọng số của một tương tác sẽ giảm đi một nửa.
+
+Điểm số cuối cùng cho mỗi tương tác được tính bằng: `score = weight * decay_factor`.
+
+#### **3.2. Lọc Cộng tác (Collaborative Filtering)**
+
+Lọc cộng tác hoạt động dựa trên nguyên tắc "những người dùng có cùng sở thích trong quá khứ sẽ có xu hướng thích những thứ giống nhau trong tương lai". Hệ thống của chúng tôi sử dụng một trong những kỹ thuật lọc cộng tác phổ biến và hiệu quả nhất là **Phân rã Ma trận (Matrix Factorization)**, được tối ưu hóa bằng thuật toán **Hạ Gradient Ngẫu nhiên (Stochastic Gradient Descent - SGD)**.
+
+1.  **Xây dựng Ma trận Tương tác:**
+    Một ma trận tương tác `R` được xây dựng, trong đó các hàng đại diện cho người dùng (`u`) và các cột đại diện cho các tour (`i`). Giá trị `R_ui` là tổng điểm số của các tương tác mà người dùng `u` đã có với tour `i`.
+
+2.  **Huấn luyện Mô hình (Phân rã Ma trận):**
+    Mục tiêu của phân rã ma trận là xấp xỉ ma trận `R` bằng tích của hai ma trận có số chiều nhỏ hơn: ma trận đặc trưng người dùng `P` (kích thước `m x k`) và ma trận đặc trưng tour `Q` (kích thước `n x k`), trong đó `m` là số lượng người dùng, `n` là số lượng tour, và `k` là số lượng yếu tố tiềm ẩn (latent factors).
+
+    Dự đoán xếp hạng của người dùng `u` cho tour `i` được tính bằng:
+    ```
+    r̂_ui = q_i^T * p_u
+    ```
+    Trong đó `p_u` là vector đặc trưng cho người dùng `u` và `q_i` là vector đặc trưng cho tour `i`.
+
+    Để tìm ra các vector đặc trưng này, chúng ta cần tối thiểu hóa hàm mất mát (loss function), thường là tổng bình phương sai số có kèm theo một thành phần điều chuẩn (regularization) để tránh hiện tượng quá khớp (overfitting).
+    ```
+    min(q*, p*) Σ(u,i) [ (r_ui - q_i^T * p_u)^2 + λ * (||q_i||^2 + ||p_u||^2) ]
+    ```
+    Trong đó `λ` là hệ số điều chuẩn.
+
+    Thuật toán SGD được sử dụng để tối ưu hóa hàm mất mát này. Với mỗi tương tác `(u, i)` trong tập dữ liệu huấn luyện, các vector đặc trưng được cập nhật theo hướng ngược lại của gradient:
+    *   `e_ui = r_ui - q_i^T * p_u` (lỗi dự đoán)
+    *   `q_i ← q_i + α * (e_ui * p_u - λ * q_i)`
+    *   `p_u ← p_u + α * (e_ui * q_i - λ * p_u)`
+    Trong đó `α` là tốc độ học (learning rate).
+
+3.  **Tạo Ứng cử viên:**
+    Sau khi huấn luyện, các vector đặc trưng (embeddings) cho người dùng và tour được lưu vào bảng `recommendation_embeddings`. Để tạo gợi ý cho một người dùng, hệ thống sẽ tính tích vô hướng giữa vector của người dùng đó với vector của tất cả các tour khác để ra điểm dự đoán, sau đó chọn ra N tour có điểm cao nhất.
+
+#### **3.3. Lọc dựa trên Nội dung (Content-Based Filtering)**
+
+Lọc dựa trên nội dung gợi ý các mục tương tự như những mục mà người dùng đã thích trong quá khứ. Phương pháp này đặc biệt hữu ích để giải quyết vấn đề khởi đầu nguội cho các tour mới.
+
+1.  **Trích xuất Đặc trưng:**
+    Mỗi tour được biểu diễn bằng một tập hợp các đặc trưng văn bản, bao gồm: tên tour, mô tả, điểm đến, chính sách, lịch trình, các thẻ (tags), và loại tour.
+
+2.  **Vector hóa bằng TF-IDF:**
+    Nội dung văn bản của mỗi tour được chuyển đổi thành một vector số bằng thuật toán **TF-IDF (Term Frequency-Inverse Document Frequency)**.
+    *   **Term Frequency (TF):** Tần suất xuất hiện của một từ trong một văn bản.
+        `TF(t, d) = (Số lần từ t xuất hiện trong văn bản d) / (Tổng số từ trong văn bản d)`
+    *   **Inverse Document Frequency (IDF):** Đo lường mức độ quan trọng của một từ.
+        `IDF(t, D) = log( (Tổng số văn bản |D| + 1) / (Số văn bản chứa từ t + 1) ) + 1`
+    *   **TF-IDF Score:**
+        `TF-IDF(t, d, D) = TF(t, d) * IDF(t, D)`
+
+    Kết quả là mỗi tour sẽ có một vector TF-IDF, trong đó mỗi chiều tương ứng với một từ và giá trị là điểm TF-IDF của từ đó.
+
+3.  **Tạo Ứng cử viên:**
+    *   **Hồ sơ người dùng (User Profile):** Hồ sơ nội dung của người dùng được xây dựng bằng cách lấy trung bình có trọng số của các vector TF-IDF của các tour mà người dùng đã tương tác (trọng số là điểm số tương tác).
+    *   **Độ tương đồng Cosine (Cosine Similarity):** Để tìm các tour tương tự, hệ thống tính toán độ tương đồng cosine giữa vector hồ sơ người dùng và vector của tất cả các tour khác.
+        ```
+        similarity(A, B) = (A · B) / (||A|| * ||B||)
+        ```
+        Trong đó `A` và `B` là hai vector. Giá trị tương đồng nằm trong khoảng từ -1 đến 1.
+    *   Các tour có độ tương đồng cao nhất sẽ được chọn làm ứng cử viên.
+
+#### **3.4. Lọc dựa trên Sự phổ biến (Popularity-Based Filtering)**
+
+Để bổ sung cho các phương pháp trên và cung cấp gợi ý cho người dùng hoàn toàn mới, hệ thống cũng tính toán điểm phổ biến cho mỗi tour. Điểm này là tổng có trọng số của các tương tác gần đây (lượt đặt, lượt thêm vào wishlist, lượt xem). Các tour phổ biến nhất được sử dụng làm một bộ gợi ý cơ bản.
+
+#### **3.5. Quy trình Đề xuất và Xếp hạng lại (Recommendation Pipeline & Re-ranking)**
+
+Thành phần phục vụ trực tuyến thực hiện một quy trình (pipeline) để tạo ra các gợi ý cuối cùng:
+
+1.  **Thu thập Ứng cử viên (Candidate Sourcing):** Hệ thống thu thập một danh sách lớn các tour ứng cử viên từ các mô hình: lọc cộng tác, lọc dựa trên nội dung, và lọc dựa trên sự phổ biến.
+2.  **Hợp nhất và Loại bỏ Trùng lặp:** Các danh sách ứng cử viên được hợp nhất và các tour trùng lặp sẽ bị loại bỏ.
+3.  **Xếp hạng lại (Re-ranking):** Đây là bước quan trọng để điều chỉnh danh sách gợi ý theo các mục tiêu kinh doanh và ngữ cảnh người dùng. Điểm số cuối cùng của mỗi tour được tính toán lại dựa trên một công thức kết hợp:
+    `final_score = w_cf * score_cf + w_content * score_content + w_popular * score_popular + preference_bonus`
+    Trong đó `w` là trọng số cho mỗi thành phần.
+    *   **`preference_bonus`:** Một điểm thưởng được cộng thêm nếu tour phù hợp với sở thích đã biết của người dùng (ví dụ: điểm đến yêu thích, loại tour yêu thích).
+    *   Các yếu tố khác như tình trạng còn chỗ của tour cũng có thể được sử dụng để tăng hoặc giảm hạng của tour trong danh sách cuối cùng.
+4.  **Lưu vào Cache:** Danh sách gợi ý cuối cùng cho mỗi người dùng được lưu vào cache trong một khoảng thời gian ngắn để giảm độ trễ cho các yêu cầu tiếp theo.
+
+---
+
+### **4. Kết luận**
+
+Hệ thống gợi ý lai được trình bày trong bài báo này cung cấp một giải pháp mạnh mẽ và linh hoạt để cá nhân hóa trải nghiệm người dùng trên website du lịch. Bằng cách kết hợp các phương pháp lọc cộng tác, lọc dựa trên nội dung và sự phổ biến, hệ thống đã giải quyết hiệu quả các thách thức phổ biến như vấn đề khởi đầu nguội, đồng thời cung cấp các gợi ý tour vừa phù hợp vừa đa dạng. Việc tách biệt giữa quá trình huấn luyện ngoại tuyến và phục vụ trực tuyến cho phép thực hiện các tính toán mô hình phức tạp mà không ảnh hưởng đến hiệu suất thời gian thực của website.
+
+Các hướng phát triển trong tương lai có thể bao gồm việc tích hợp các mô hình học sâu (deep learning) phức tạp hơn để nắm bắt các mối quan hệ phi tuyến tính trong dữ liệu, cũng như tích hợp ngữ cảnh thời gian thực của người dùng (ví dụ: thời gian trong ngày, vị trí hiện tại) để cung cấp các gợi ý linh hoạt và tức thời hơn nữa.
+
+---
+
+### **5. Tài liệu tham khảo**
+
+1.  Koren, Y., Bell, R., & Volinsky, C. (2009). Matrix Factorization Techniques for Recommender Systems. *Computer*, 42(8), 30-37.
+2.  Salton, G., & Buckley, C. (1988). Term-weighting approaches in automatic text retrieval. *Information Processing & Management*, 24(5), 513-523.
+3.  Bodduluri, K. C., et al. (2024). *Exploring the Landscape of Hybrid Recommendation Systems in E-Commerce: A Systematic Literature Review*. IEEE Xplore.
+4.  Hu, Y., Koren, Y., & Volinsky, C. (2008). *Collaborative filtering for implicit feedback datasets*. 2008 Eighth IEEE International Conference on Data Mining.
+5.  Ricci, F., Rokach, L., & Shapira, B. (2011). *Introduction to Recommender Systems Handbook*. Springer.

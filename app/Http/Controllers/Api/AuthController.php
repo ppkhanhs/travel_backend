@@ -75,6 +75,33 @@ class AuthController extends Controller
         return response()->json($request->user());
     }
 
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'name' => 'nullable|string|max:255',
+            'phone' => ['nullable', 'string', 'max:50', 'unique:users,phone,' . $user->id],
+            'address_line1' => 'nullable|string|max:255',
+            'address_line2' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:150',
+            'state' => 'nullable|string|max:150',
+            'postal_code' => 'nullable|string|max:20',
+            'country' => 'nullable|string|max:150',
+        ]);
+
+        $user->fill(array_filter(
+            $data,
+            fn ($value) => !is_null($value)
+        ));
+        $user->save();
+
+        return response()->json([
+            'message' => 'Cập nhật hồ sơ thành công.',
+            'user' => $user->fresh(),
+        ]);
+    }
+
     public function forgotPassword(Request $request)
     {
         $request->validate([

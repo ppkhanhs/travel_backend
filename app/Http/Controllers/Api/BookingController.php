@@ -79,9 +79,9 @@ class BookingController extends Controller
             'package_id' => 'required|uuid',
             'adults' => 'required|integer|min:1',
             'children' => 'nullable|integer|min:0',
-            'contact_name' => 'required|string|max:255',
-            'contact_email' => 'required|email|max:255',
-            'contact_phone' => 'required|string|max:50',
+            'contact_name' => 'nullable|string|max:255',
+            'contact_email' => 'nullable|email|max:255',
+            'contact_phone' => 'nullable|string|max:50',
             'notes' => 'nullable|string',
             'payment_method' => 'required|in:offline,sepay',
             'passengers' => 'required|array|min:1',
@@ -95,6 +95,21 @@ class BookingController extends Controller
 
         $data['children'] = $data['children'] ?? 0;
         $totalRequested = $data['adults'] + $data['children'];
+        $profile = $request->user();
+
+        $contactName = $data['contact_name'] ?? $profile?->name;
+        $contactEmail = $data['contact_email'] ?? $profile?->email;
+        $contactPhone = $data['contact_phone'] ?? $profile?->phone;
+
+        if (!$contactName || !$contactEmail || !$contactPhone) {
+            throw ValidationException::withMessages([
+                'contact_name' => ['Thông tin liên hệ chưa đầy đủ. Vui lòng bổ sung họ tên, email và số điện thoại.'],
+            ]);
+        }
+
+        $data['contact_name'] = $contactName;
+        $data['contact_email'] = $contactEmail;
+        $data['contact_phone'] = $contactPhone;
 
         if ($data['payment_method'] === 'sepay' && !$this->sepay->isEnabled() && !$this->sepay->hasStaticQrConfig()) {
             throw ValidationException::withMessages([

@@ -59,6 +59,7 @@ Route::post('/chatbot', [ChatController::class, 'chat'])->middleware('throttle:3
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/profile', [AuthController::class, 'profile']);
+    Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::get('/recommendations', [RecommendationController::class, 'index']);
     Route::get('/recent-tours', [RecentTourController::class, 'index']);
     Route::get('/notifications', [NotificationController::class, 'index']);

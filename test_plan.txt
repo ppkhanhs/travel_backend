@@ -1,0 +1,156 @@
+# KẾ HOẠCH KIỂM THỬ (TEST PLAN) - DỰ ÁN WEBSITE DU LỊCH
+
+- **Dự án:** Website Du lịch Đa nền tảng với Gợi ý Cá nhân hóa
+- **Tác giả:** ppkhanhs
+- **Ngày tạo:** 15/11/2025
+
+---
+
+## 1. GIỚI THIỆU
+
+Tài liệu này mô tả kế hoạch kiểm thử cho dự án "Website Du lịch Đa nền tảng". Mục tiêu là đảm bảo chất lượng của sản phẩm, xác minh rằng tất cả các chức năng hoạt động đúng như đặc tả, và cung cấp một trải nghiệm người dùng tốt nhất trên các nền tảng khác nhau thông qua hệ thống API backend.
+
+Dựa trên phân tích mã nguồn, hệ thống bao gồm các vai trò người dùng chính: Khách hàng (User), Đối tác (Partner), và Quản trị viên (Admin), cùng với các tính năng phức tạp như đặt tour, thanh toán, khuyến mãi và hệ thống gợi ý.
+
+---
+
+## 2. PHẠM VI KIỂM THỬ
+
+### 2.1. Trong phạm vi (In-scope)
+
+Kiểm thử sẽ tập trung vào các chức năng của backend được cung cấp qua API.
+
+- **Xác thực & Phân quyền:**
+    - Đăng ký, Đăng nhập (email/password, social), Đăng xuất.
+    - Quên mật khẩu, Đặt lại mật khẩu (OTP).
+    - Phân quyền truy cập cho các vai trò: User, Partner, Admin.
+
+- **Quản lý Tour:**
+    - Tìm kiếm, lọc, và xem chi tiết tour.
+    - Xem các tour đang thịnh hành (trending).
+    - Xem đánh giá (reviews) của tour.
+
+- **Quy trình Đặt tour (Booking Flow):**
+    - Quản lý giỏ hàng (thêm, sửa, xóa sản phẩm).
+    - Áp dụng mã khuyến mãi.
+    - Thực hiện đặt tour (booking).
+    - Hủy tour.
+
+- **Thanh toán & Hóa đơn (Payment & Invoice):**
+    - Tích hợp cổng thanh toán (Sepay).
+    - Xử lý Webhook và callback từ cổng thanh toán.
+    - Quản lý trạng thái thanh toán.
+    - Yêu cầu và tải hóa đơn.
+
+- **Hệ thống Gợi ý (Recommendation System):**
+    - Gợi ý tour dựa trên hành vi người dùng.
+    - Gợi ý các tour tương tự.
+    - Cập nhật gợi ý qua các tác vụ nền (background jobs).
+
+- **Tính năng Người dùng:**
+    - Quản lý hồ sơ cá nhân (profile).
+    - Quản lý danh sách yêu thích (wishlist).
+    - Xem lịch sử đặt tour.
+    - Quản lý thông báo (notifications).
+
+- **Chức năng của Đối tác (Partner):**
+    - Quản lý thông tin tour của đối tác (thêm, sửa, xóa).
+    - Quản lý các đặt tour liên quan đến tour của mình.
+    - Quản lý khuyến mãi do đối tác tạo.
+    - Xử lý yêu cầu hoàn tiền.
+
+- **Chức năng của Quản trị viên (Admin):**
+    - Dashboard tổng quan.
+    - Quản lý tài khoản (Users, Partners, Staff).
+    - Quản lý toàn bộ Tour, Booking, Khuyến mãi, Danh mục.
+    - Phê duyệt/từ chối các yêu cầu.
+
+- **Tính năng khác:**
+    - Chatbot.
+    - Ghi nhận sự kiện phân tích (Analytics Events).
+    - Các tác vụ tự động (Commands): hủy tour không đủ khách, tạo gợi ý.
+    - Gửi email và thông báo hệ thống.
+
+### 2.2. Ngoài phạm vi (Out-of-scope)
+
+- Kiểm thử giao diện người dùng (UI/UX testing) trên các nền tảng (web/mobile app).
+- Kiểm thử hiệu năng, tải trọng (Performance/Load testing), và stress testing.
+- Kiểm thử hạ tầng mạng, máy chủ, database.
+- Kiểm thử các dịch vụ của bên thứ ba (ví dụ: kiểm thử nội bộ của cổng thanh toán Sepay, dịch vụ gửi email).
+
+---
+
+## 3. CHIẾN LƯỢC KIỂM THỬ
+
+- **Kiểm thử API:** Sử dụng công cụ Postman để thực hiện kiểm thử các API endpoint.
+    - **Kiểm thử chức năng (Functional Testing):** Xác minh các API hoạt động đúng logic nghiệp vụ.
+    - **Kiểm thử xác thực (Validation Testing):** Kiểm tra các quy tắc xác thực đầu vào (ví dụ: email không hợp lệ, mật khẩu quá ngắn, thiếu trường bắt buộc).
+    - **Kiểm thử phân quyền (Authorization Testing):** Đảm bảo người dùng chỉ có thể truy cập tài nguyên được phép theo vai trò.
+- **Kiểm thử Tích hợp (Integration Testing):** Kiểm tra sự tương tác giữa các module (ví dụ: quy trình từ đặt tour -> thanh toán -> tạo hóa đơn -> gửi email).
+- **Kiểm thử Tác vụ nền (Background Job Testing):** Kích hoạt và kiểm tra kết quả của các Artisan command (ví dụ: `GenerateRecommendationsCommand`).
+- **Kiểm thử Bảo mật (Security Testing):** Thực hiện các kiểm tra cơ bản như SQL Injection, Cross-Site Scripting (XSS) trên các đầu vào API, kiểm tra lộ thông tin nhạy cảm.
+
+---
+
+## 4. KẾ HOẠCH KIỂM THỬ CHI TIẾT (HIGH-LEVEL TEST CASES)
+
+### 4.1. Module Xác thực & Phân quyền
+- TC01: Đăng ký tài khoản thành công với email hợp lệ.
+- TC02: Đăng nhập thành công và nhận được token.
+- TC03: Đăng nhập thất bại với sai mật khẩu/email.
+- TC04: Người dùng chưa đăng nhập không thể truy cập route yêu cầu xác thực.
+- TC05: User không thể truy cập API của Admin/Partner.
+- TC06: Partner không thể truy cập API của Admin.
+- TC07: Quy trình quên mật khẩu và tạo mật khẩu mới qua OTP hoạt động chính xác.
+
+### 4.2. Module Quản lý Tour & Tìm kiếm
+- TC08: API trả về danh sách tour có phân trang.
+- TC09: API cho phép tìm kiếm tour theo tên, địa điểm.
+- TC10: API cho phép lọc tour theo khoảng giá, danh mục.
+- TC11: API trả về chi tiết một tour bao gồm lịch trình, gói tour.
+
+### 4.3. Module Giỏ hàng & Đặt tour
+- TC12: Thêm một tour vào giỏ hàng thành công.
+- TC13: Cập nhật số lượng hành khách trong giỏ hàng.
+- TC14: Áp dụng mã khuyến mãi hợp lệ và không hợp lệ.
+- TC15: Tạo một booking từ giỏ hàng.
+- TC16: Hủy một booking đang ở trạng thái cho phép hủy.
+- TC17: Yêu cầu hoàn tiền cho một booking đã thanh toán.
+
+### 4.4. Module Thanh toán
+- TC18: API tạo yêu cầu thanh toán đến Sepay thành công.
+- TC19: Hệ thống xử lý đúng webhook khi thanh toán thành công (cập nhật trạng thái booking, payment).
+- TC20: Hệ thống xử lý đúng webhook khi thanh toán thất bại.
+- TC21: API kiểm tra trạng thái thanh toán của booking hoạt động chính xác.
+
+### 4.5. Module Gợi ý
+- TC22: API trả về danh sách tour gợi ý cho người dùng đã đăng nhập.
+- TC23: Kiểm tra rằng việc xem một tour sẽ ảnh hưởng đến kết quả gợi ý trong tương lai (sau khi job chạy).
+- TC24: API trả về danh sách tour tương tự khi xem chi tiết một tour.
+
+### 4.6. Module Partner
+- TC25: Partner tạo một tour mới thành công.
+- TC26: Partner xem danh sách các booking thuộc tour của mình.
+- TC27: Partner cập nhật trạng thái của một booking (ví dụ: đã xác nhận).
+
+### 4.7. Module Admin
+- TC28: Admin có thể xem dashboard với dữ liệu tổng quan.
+- TC29: Admin có thể khóa/mở khóa tài khoản người dùng.
+- TC30: Admin có thể phê duyệt/từ chối một tour do partner tạo.
+- TC31: Admin có thể quản lý (CRUD) các danh mục tour.
+
+---
+
+## 5. MÔI TRƯỜNG KIỂM THỬ
+- **Server:** Local server (e.g., Laravel Sail, XAMPP, WAMP).
+- **Database:** MySQL / PostgreSQL.
+- **API Client:** Postman.
+- **Mail Server (Fake):** Mailtrap hoặc tương tự để kiểm tra email được gửi đi.
+- **Command Line:** Terminal để thực thi các lệnh Artisan.
+
+---
+
+## 6. SẢN PHẨM ĐẦU RA
+- Báo cáo kiểm thử (Test Report) chi tiết các ca kiểm thử đã thực hiện.
+- Danh sách lỗi (Bug list) được ghi nhận trên hệ thống quản lý lỗi (ví dụ: Jira, Trello, GitHub Issues).
+- Báo cáo tổng kết chất lượng của phiên bản.
