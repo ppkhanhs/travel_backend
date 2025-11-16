@@ -9,7 +9,6 @@ use App\Models\CartItem;
 use App\Models\Tour;
 use App\Models\TourPackage;
 use App\Models\TourSchedule;
-use App\Services\UserActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,10 +16,6 @@ use Illuminate\Validation\ValidationException;
 
 class CartController extends Controller
 {
-    public function __construct(private UserActivityLogger $activityLogger)
-    {
-    }
-
     public function show(Request $request): CartResource
     {
         $cart = $this->getOrCreateCart($request->user()->id);
@@ -75,7 +70,7 @@ class CartController extends Controller
             }
         });
 
-        $this->activityLogger->log($request->user(), $tourId, 'cart_add');
+        $this->logUserActivity($request->user(), $tourId, 'cart_add');
 
         return $this->show($request);
     }

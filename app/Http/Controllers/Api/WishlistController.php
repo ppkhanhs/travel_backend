@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\WishlistItemResource;
 use App\Models\Tour;
 use App\Models\Wishlist;
-use App\Services\UserActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,10 +13,6 @@ use Illuminate\Validation\ValidationException;
 
 class WishlistController extends Controller
 {
-    public function __construct(private UserActivityLogger $activityLogger)
-    {
-    }
-
     public function index(Request $request): JsonResponse
     {
         $items = Wishlist::where('user_id', $request->user()->id)
@@ -52,7 +47,7 @@ class WishlistController extends Controller
             'tour_id' => $tourId,
         ]);
 
-        $this->activityLogger->log($request->user(), $tourId, 'wishlist_add');
+        $this->logUserActivity($request->user(), $tourId, 'wishlist_add');
 
         return response()->json([
             'message' => 'Tour Ä‘Ã£ Ä‘Æ°á»£c thÃªm vÃ o danh sÃ¡ch yÃªu thÃ­ch.',

@@ -13,7 +13,6 @@ use App\Models\Tour;
 use App\Models\TourPackage;
 use App\Models\TourSchedule;
 use App\Services\InvoiceService;
-use App\Services\UserActivityLogger;
 use App\Services\SepayService;
 use App\Services\AutoPromotionService;
 use Illuminate\Http\JsonResponse;
@@ -30,8 +29,7 @@ class BookingController extends Controller
     public function __construct(
         private SepayService $sepay,
         private AutoPromotionService $autoPromotions,
-        private InvoiceService $invoiceService,
-        private UserActivityLogger $activityLogger
+        private InvoiceService $invoiceService
     ) {
     }
 
@@ -267,9 +265,7 @@ class BookingController extends Controller
         $this->sendBookingInvoiceMail($booking);
 
         $tourId = $booking->tourSchedule?->tour_id;
-        if ($tourId) {
-            $this->activityLogger->log($request->user(), (string) $tourId, 'booking_created');
-        }
+        $this->logUserActivity($request->user(), $tourId ? (string) $tourId : null, 'booking_created');
 
         return response()->json([
             'message' => 'Booking created successfully. Await partner confirmation.',
@@ -357,9 +353,7 @@ class BookingController extends Controller
         $booking->promotions()->detach();
 
         $tourId = $booking->tourSchedule?->tour_id;
-        if ($tourId) {
-            $this->activityLogger->log($request->user(), (string) $tourId, 'booking_cancelled');
-        }
+        $this->logUserActivity($request->user(), $tourId ? (string) $tourId : null, 'booking_cancelled');
 
         return response()->json([
             'message' => 'Booking cancelled successfully.',
