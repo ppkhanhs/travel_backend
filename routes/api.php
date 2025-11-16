@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\RefundController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PartnerRegistrationController;
 use App\Http\Controllers\Api\Admin\AdminAccountController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
@@ -55,6 +56,7 @@ Route::post('/analytics/events', [AnalyticsEventController::class, 'store'])
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/chatbot', [ChatController::class, 'chat'])->middleware('throttle:30,1');
+Route::post('/partners/register', [PartnerRegistrationController::class, 'store']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -156,7 +158,6 @@ Route::middleware(['auth:sanctum', 'ensure_admin'])->prefix('admin')->group(func
     Route::patch('/users/{id}/status', [AdminUserController::class, 'updateStatus']);
 
     Route::get('/partners', [AdminPartnerController::class, 'index']);
-    Route::post('/partners', [AdminPartnerController::class, 'store']);
     Route::get('/partners/{id}', [AdminPartnerController::class, 'show']);
     Route::patch('/partners/{id}', [AdminPartnerController::class, 'update']);
 

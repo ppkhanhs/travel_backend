@@ -30,9 +30,19 @@ class Partner extends Model
         'invoice_address',
         'invoice_email',
         'invoice_vat_rate',
+        'contact_name',
+        'contact_email',
+        'contact_phone',
+        'business_type',
+        'description',
+        'approved_at',
     ];
 
-    public $timestamps = false;
+    protected $casts = [
+        'approved_at' => 'datetime',
+    ];
+
+    public $timestamps = true;
 
     protected static function booted(): void
     {

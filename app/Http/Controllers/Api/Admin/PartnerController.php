@@ -11,8 +11,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PartnerController extends Controller
 {
@@ -24,49 +27,6 @@ class PartnerController extends Controller
             ->paginate($request->integer('per_page', 20));
 
         return response()->json($partners);
-    }
-
-    public function store(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'phone' => 'nullable|string|max:20|unique:users,phone',
-            'password' => 'required|string|min:6|confirmed',
-            'company_name' => 'required|string|max:255',
-            'tax_code' => 'nullable|string|max:50',
-            'address' => 'nullable|string|max:255',
-            'status' => ['required', Rule::in(['pending', 'approved', 'rejected'])],
-        ]);
-
-        $partner = DB::transaction(function () use ($data) {
-            $userAttributes = [
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'phone' => $data['phone'] ?? null,
-                'password' => Hash::make($data['password']),
-                'role' => 'partner',
-            ];
-
-            if (Schema::hasColumn('users', 'status')) {
-                $userAttributes['status'] = $data['status'] === 'rejected' ? 'inactive' : 'active';
-            }
-
-            $user = User::create($userAttributes);
-
-            return Partner::create([
-                'user_id' => $user->id,
-                'company_name' => $data['company_name'],
-                'tax_code' => $data['tax_code'] ?? null,
-                'address' => $data['address'] ?? null,
-                'status' => $data['status'],
-            ]);
-        });
-
-        return response()->json([
-            'message' => 'Tạo đối tác thành công.',
-            'partner' => $partner->load('user'),
-        ], 201);
     }
 
     public function show(string $id): JsonResponse
@@ -94,57 +54,143 @@ class PartnerController extends Controller
         $partner = Partner::with('user')->findOrFail($id);
 
         $data = $request->validate([
-            'name' => 'sometimes|required|string|max:255',
-            'email' => [
+            'company_name' => 'sometimes|required|string|max:255',
+            'business_type' => 'sometimes|nullable|string|max:255',
+            'tax_code' => 'sometimes|nullable|string|max:50',
+            'address' => 'sometimes|nullable|string|max:255',
+            'description' => 'sometimes|nullable|string',
+            'contact_name' => 'sometimes|required|string|max:255',
+            'contact_email' => [
                 'sometimes',
                 'required',
                 'email',
-                Rule::unique('users', 'email')->ignore($partner->user_id),
+                Rule::unique('partners', 'contact_email')->ignore($partner->id)->whereNotNull('contact_email'),
             ],
-            'phone' => [
+            'contact_phone' => [
                 'sometimes',
-                'nullable',
+                'required',
                 'string',
-                'max:20',
-                Rule::unique('users', 'phone')->ignore($partner->user_id),
+                'max:30',
+                Rule::unique('partners', 'contact_phone')->ignore($partner->id)->whereNotNull('contact_phone'),
             ],
-            'company_name' => 'sometimes|required|string|max:255',
-            'tax_code' => 'sometimes|nullable|string|max:50',
-            'address' => 'sometimes|nullable|string|max:255',
             'status' => ['sometimes', Rule::in(['pending', 'approved', 'rejected'])],
         ]);
 
-        DB::transaction(function () use ($data, $partner) {
-            if (isset($data['name']) || isset($data['email']) || array_key_exists('phone', $data)) {
-                $userUpdates = array_intersect_key($data, array_flip(['name', 'email', 'phone']));
-                if (!empty($userUpdates)) {
-                    $partner->user->fill($userUpdates);
-                    $partner->user->save();
-                }
+        $previousStatus = $partner->status;
+        $generatedPassword = null;
+
+        DB::transaction(function () use ($data, $partner, &$generatedPassword, $previousStatus) {
+            if (!empty($data)) {
+                $partner->fill(array_intersect_key($data, array_flip([
+                    'company_name',
+                    'business_type',
+                    'tax_code',
+                    'address',
+                    'description',
+                    'contact_name',
+                    'contact_email',
+                    'contact_phone',
+                    'status',
+                ])));
             }
 
-            $partnerUpdates = array_intersect_key($data, array_flip(['company_name', 'tax_code', 'address', 'status']));
-            if (!empty($partnerUpdates)) {
-                $partner->fill($partnerUpdates);
+            if (($data['status'] ?? null) === 'approved' && $previousStatus !== 'approved') {
+                if (!$partner->contact_email) {
+                    throw ValidationException::withMessages([
+                        'contact_email' => ['Đối tác chưa có email liên hệ.'],
+                    ]);
+                }
+
+                if (!$partner->user_id) {
+                    $generatedPassword = Str::random(12);
+                    $user = User::create([
+                        'name' => $partner->contact_name ?: $partner->company_name,
+                        'email' => $partner->contact_email,
+                        'phone' => $partner->contact_phone,
+                        'password' => Hash::make($generatedPassword),
+                        'role' => 'partner',
+                        'status' => 'active',
+                    ]);
+
+                    $partner->user_id = $user->id;
+                } else {
+                    $partner->user?->update(['status' => 'active']);
+                }
+
+                $partner->approved_at = now();
+                $partner->status = 'approved';
             }
 
-            if (isset($data['status']) && Schema::hasColumn('users', 'status')) {
-                if ($data['status'] === 'rejected') {
-                    $partner->user->status = 'inactive';
-                } elseif ($data['status'] === 'approved') {
-                    $partner->user->status = 'active';
-                } elseif ($data['status'] === 'pending') {
-                    $partner->user->status = 'inactive';
-                }
+            if (($data['status'] ?? null) === 'rejected' && $partner->user) {
+                $partner->user->status = 'inactive';
+                $partner->user->save();
+            }
+
+            if (($data['status'] ?? null) === 'pending' && $partner->user) {
+                $partner->user->status = 'inactive';
                 $partner->user->save();
             }
 
             $partner->save();
         });
 
+        if ($partner->status === 'approved' && $previousStatus !== 'approved') {
+            $this->sendPartnerApprovalEmail($partner->fresh('user'), $generatedPassword);
+        }
+
         return response()->json([
             'message' => 'Cập nhật thông tin đối tác thành công.',
             'partner' => $partner->fresh('user'),
         ]);
     }
+
+    private function sendPartnerApprovalEmail(Partner $partner, ?string $plainPassword): void
+    {
+        if (!$partner->contact_email || !$plainPassword) {
+            return;
+        }
+
+        $brevo = config('services.brevo');
+        $apiKey = $brevo['api_key'] ?? null;
+        $senderEmail = $brevo['sender_email'] ?? null;
+        $senderName = $brevo['sender_name'] ?? config('app.name');
+
+        if (!$apiKey || !$senderEmail) {
+            logger()->warning('[PartnerApprovalEmail] Missing Brevo credentials.');
+            return;
+        }
+
+        $html = view('emails.partners.approved', [
+            'partner' => $partner,
+            'password' => $plainPassword,
+        ])->render();
+
+        $response = Http::withHeaders([
+            'api-key' => $apiKey,
+            'accept' => 'application/json',
+            'content-type' => 'application/json',
+        ])->post('https://api.brevo.com/v3/smtp/email', [
+            'sender' => [
+                'email' => $senderEmail,
+                'name' => $senderName,
+            ],
+            'to' => [
+                [
+                    'email' => $partner->contact_email,
+                    'name' => $partner->contact_name ?: $partner->company_name,
+                ],
+            ],
+            'subject' => 'Yêu cầu hợp tác đã được duyệt',
+            'htmlContent' => $html,
+        ]);
+
+        if ($response->failed()) {
+            logger()->warning('[PartnerApprovalEmail] Failed', [
+                'partner_id' => $partner->id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        }
+    }
 }
+
