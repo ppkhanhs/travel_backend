@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Arr;
 
 class TourController extends Controller
 {
@@ -48,8 +49,9 @@ class TourController extends Controller
             $query->where('partner_id', $request->partner_id);
         }
 
-        if ($request->filled('destinations')) {
-            $destinations = array_filter((array) $request->destinations);
+        $rawDestinations = $request->input('destinations');
+        if ($rawDestinations !== null) {
+            $destinations = $this->normalizeArrayFilter($rawDestinations);
             if (!empty($destinations)) {
                 $query->where(function ($q) use ($destinations) {
                     foreach ($destinations as $index => $destination) {
@@ -81,8 +83,9 @@ class TourController extends Controller
             });
         }
 
-        if ($request->filled('tags')) {
-            $tags = array_filter((array) $request->tags);
+        $rawTags = $request->input('tags');
+        if ($rawTags !== null) {
+            $tags = $this->normalizeArrayFilter($rawTags);
             if (!empty($tags)) {
                 $query->where(function ($q) use ($tags) {
                     foreach ($tags as $index => $tag) {
@@ -335,6 +338,20 @@ class TourController extends Controller
         }
 
         return $query->groupBy('tour_schedules.tour_id');
+    }
+
+    private function normalizeArrayFilter($value): array
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $value = $decoded;
+            }
+        }
+
+        return array_values(array_filter(Arr::wrap($value), function ($item) {
+            return is_string($item) && trim($item) !== '';
+        }));
     }
 }
 
