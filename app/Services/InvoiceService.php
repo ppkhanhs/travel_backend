@@ -22,39 +22,20 @@ class InvoiceService
     {
         $items = [];
         $tourTitle = $booking->tourSchedule?->tour?->title ?? 'Tour';
-        $package = $booking->package;
+        $promotions = $booking->promotions()
+            ->withPivot(['discount_amount'])
+            ->get();
+        $discountTotal = $promotions->sum(function ($promotion) {
+            return (float) $promotion->pivot->discount_amount;
+        });
+        $netTotal = max(0, (float) $booking->total_price - $discountTotal);
 
-        $adultPrice = $package ? (float) $package->adult_price : (float) $booking->tourSchedule?->tour?->base_price;
-        $childPrice = $package ? (float) $package->child_price : round($adultPrice * 0.75, 2);
-
-        if ($booking->total_adults > 0) {
-            $items[] = [
-                'description' => "{$tourTitle} - Adult",
-                'quantity' => $booking->total_adults,
-                'unit_price' => $adultPrice,
-                'amount' => round($booking->total_adults * $adultPrice, 2),
-            ];
-        }
-
-        if ($booking->total_children > 0) {
-            $items[] = [
-                'description' => "{$tourTitle} - Child",
-                'quantity' => $booking->total_children,
-                'unit_price' => $childPrice,
-                'amount' => round($booking->total_children * $childPrice, 2),
-            ];
-        }
-
-        if (empty($items)) {
-            $items[] = [
-                'description' => $tourTitle,
-                'quantity' => 1,
-                'unit_price' => (float) $booking->total_price,
-                'amount' => (float) $booking->total_price,
-            ];
-        }
-
-        return $items;
+        return [[
+            'description' => $tourTitle,
+            'quantity' => 1,
+            'unit_price' => $netTotal,
+            'amount' => $netTotal,
+        ]];
     }
 
     public function calculateSubtotal(array $lineItems): float
