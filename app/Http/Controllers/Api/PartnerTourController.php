@@ -382,13 +382,28 @@ class PartnerTourController extends Controller
             $keepIds[] = $newId;
         }
 
-        $query = DB::table('tour_schedules')->where('tour_id', $tourId);
+        $deleteQuery = DB::table('tour_schedules')->where('tour_id', $tourId);
 
         if (!empty($keepIds)) {
-            $query->whereNotIn('id', $keepIds)->delete();
-        } else {
-            $query->delete();
+            $deleteQuery->whereNotIn('id', $keepIds);
         }
+
+        $blockedSchedules = (clone $deleteQuery)
+            ->whereExists(function ($subQuery) {
+                $subQuery->select(DB::raw(1))
+                    ->from('bookings')
+                    ->whereColumn('bookings.tour_schedule_id', 'tour_schedules.id');
+            })
+            ->pluck('id')
+            ->all();
+
+        if (!empty($blockedSchedules)) {
+            throw ValidationException::withMessages([
+                'schedules' => ['Không thể xóa lịch đã có booking. Vui lòng giữ nguyên những lịch đã có đơn đặt chỗ.'],
+            ]);
+        }
+
+        $deleteQuery->delete();
     }
 
     private function syncPackages(string $tourId, ?array $packages): void
