@@ -78,10 +78,17 @@ class BookingController extends Controller
                 $booking->payment_status = 'pending';
             }
 
-            if ($newStatus === 'completed' && $booking->payment_status !== 'paid') {
-                if ($booking->payments()->where('status', 'success')->exists()) {
+            if ($newStatus === 'completed') {
+                if ($booking->payment_status !== 'paid') {
                     $booking->payment_status = 'paid';
                 }
+
+                $booking->payments()
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => 'success',
+                        'paid_at' => now(),
+                    ]);
             }
 
             $booking->status = $newStatus;
