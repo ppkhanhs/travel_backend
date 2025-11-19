@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\RecentTourController;
 use App\Http\Controllers\Api\Partner\BookingController as PartnerBookingController;
 use App\Http\Controllers\Api\Partner\DashboardController as PartnerDashboardController;
 use App\Http\Controllers\Api\Partner\RefundController as PartnerRefundController;
+use App\Http\Controllers\Api\Partner\ProfileController as PartnerProfileController;
 use App\Http\Controllers\Api\RefundController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\ChatController;
@@ -131,6 +132,8 @@ Route::get('/recommendations/similar/{tour}', [RecommendationController::class, 
 // Partner routes
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/partner/dashboard', [PartnerDashboardController::class, 'index']);
+    Route::get('/partner/profile', [PartnerProfileController::class, 'show']);
+    Route::put('/partner/profile', [PartnerProfileController::class, 'update']);
     Route::get('/partner/tours', [PartnerTourController::class, 'index']);
     Route::get('/partner/tours/{id}', [PartnerTourController::class, 'show']);
     Route::post('/partner/tours', [PartnerTourController::class, 'store']);
