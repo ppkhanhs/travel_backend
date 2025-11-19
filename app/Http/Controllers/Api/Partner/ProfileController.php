@@ -19,7 +19,7 @@ class ProfileController extends Controller
         }
 
         return response()->json([
-            'partner' => $partner,
+            'profile' => $partner,
         ]);
     }
 
@@ -62,7 +62,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'message' => 'Partner profile updated successfully.',
-            'partner' => $partner,
+            'profile' => $partner,
         ]);
     }
 
