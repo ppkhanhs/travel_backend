@@ -113,7 +113,8 @@ class PaymentController extends Controller
     public function status(Request $request, string $bookingId): JsonResponse
     {
         $booking = Booking::with(['payments' => function ($query) {
-            $query->latest();
+            $query->orderByDesc('paid_at')
+                ->orderByDesc('id');
         }])->where('user_id', $request->user()->id)->findOrFail($bookingId);
 
         $latestPayment = $booking->payments->first();
