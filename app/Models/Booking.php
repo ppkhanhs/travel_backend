@@ -35,6 +35,8 @@ class Booking extends Model
         'contact_email',
         'contact_phone',
         'notes',
+        'reminder_sent_at',
+        'review_notified_at',
     ];
 
     protected $casts = [
@@ -42,6 +44,8 @@ class Booking extends Model
         'total_price' => 'float',
         'total_adults' => 'integer',
         'total_children' => 'integer',
+        'reminder_sent_at' => 'datetime',
+        'review_notified_at' => 'datetime',
     ];
 
     protected static function booted(): void

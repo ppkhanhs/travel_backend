@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Payment;
+use App\Notifications\BookingPaymentSuccessNotification;
+use App\Services\NotificationService;
 use App\Services\SepayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,11 +17,10 @@ use SePay\SePay\Http\Controllers\SePayController;
 
 class PaymentController extends Controller
 {
-    private SepayService $sepay;
-
-    public function __construct(SepayService $sepay)
-    {
-        $this->sepay = $sepay;
+    public function __construct(
+        private SepayService $sepay,
+        private NotificationService $notifications
+    ) {
     }
 
     public function handleSepayWebhook(Request $request): JsonResponse|Response
@@ -43,8 +44,9 @@ class PaymentController extends Controller
 
         $payment = Payment::query()->findOrFail($paymentId);
         $service = $this->sepay;
+        $statusChangedToSuccess = false;
 
-        DB::transaction(function () use ($payload, $payment, $service) {
+        DB::transaction(function () use ($payload, $payment, $service, &$statusChangedToSuccess) {
             $status = $service->extractStatus($payload);
 
             $booking = $payment->booking()->lockForUpdate()->first();
@@ -61,6 +63,8 @@ class PaymentController extends Controller
 
                 $booking->payment_status = 'paid';
                 $booking->save();
+
+                $statusChangedToSuccess = true;
 
                 return;
             }
@@ -83,6 +87,15 @@ class PaymentController extends Controller
                 $booking->save();
             }
         });
+
+        if ($statusChangedToSuccess) {
+            $payment->loadMissing('booking.user', 'booking.tourSchedule.tour');
+            $booking = $payment->booking;
+
+            if ($booking && $booking->user) {
+                $this->notifications->notify($booking->user, new BookingPaymentSuccessNotification($booking));
+            }
+        }
 
         return response()->json([
             'message' => 'Webhook processed successfully.',

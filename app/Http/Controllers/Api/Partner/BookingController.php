@@ -5,6 +5,11 @@ namespace App\Http\Controllers\Api\Partner;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\TourSchedule;
+use App\Notifications\BookingCancelledNotification;
+use App\Notifications\BookingCompletedNotification;
+use App\Notifications\BookingConfirmedNotification;
+use App\Notifications\BookingReviewRequestNotification;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 class BookingController extends Controller
 {
+    public function __construct(private NotificationService $notifications)
+    {
+    }
+
     public function index(Request $request): JsonResponse
     {
         $partner = $this->getAuthenticatedPartner();
@@ -78,6 +87,25 @@ class BookingController extends Controller
             $booking->status = $newStatus;
             $booking->save();
         });
+
+        $booking->refresh();
+        $booking->loadMissing('user', 'tourSchedule.tour');
+
+        if ($booking->user) {
+            if ($newStatus === 'confirmed') {
+                $this->notifications->notify($booking->user, new BookingConfirmedNotification($booking));
+            } elseif ($newStatus === 'completed') {
+                $this->notifications->notify($booking->user, new BookingCompletedNotification($booking));
+
+                if (!$booking->review_notified_at) {
+                    $this->notifications->notify($booking->user, new BookingReviewRequestNotification($booking));
+                    $booking->review_notified_at = now();
+                    $booking->save();
+                }
+            } elseif ($newStatus === 'cancelled') {
+                $this->notifications->notify($booking->user, new BookingCancelledNotification($booking, true));
+            }
+        }
 
         return response()->json(['message' => 'Booking status updated successfully.']);
     }

@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('recommendations:train --top=50')->dailyAt('02:00');
         $schedule->command('tours:cancel-underbooked')->dailyAt('00:30');
+        $schedule->command('bookings:upcoming-reminders')->dailyAt('08:00');
     }
 
     /**

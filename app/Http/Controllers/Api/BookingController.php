@@ -12,9 +12,12 @@ use App\Models\Promotion;
 use App\Models\Tour;
 use App\Models\TourPackage;
 use App\Models\TourSchedule;
+use App\Notifications\BookingCancelledNotification;
+use App\Notifications\BookingCreatedNotification;
 use App\Services\InvoiceService;
 use App\Services\SepayService;
 use App\Services\AutoPromotionService;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -29,7 +32,8 @@ class BookingController extends Controller
     public function __construct(
         private SepayService $sepay,
         private AutoPromotionService $autoPromotions,
-        private InvoiceService $invoiceService
+        private InvoiceService $invoiceService,
+        private NotificationService $notifications
     ) {
     }
 
@@ -266,6 +270,7 @@ class BookingController extends Controller
 
         $tourId = $booking->tourSchedule?->tour_id;
         $this->logUserActivity($request->user(), $tourId ? (string) $tourId : null, 'booking_created');
+        $this->notifications->notify($booking->user ?? $request->user(), new BookingCreatedNotification($booking));
 
         return response()->json([
             'message' => 'Booking created successfully. Await partner confirmation.',
@@ -354,6 +359,8 @@ class BookingController extends Controller
 
         $tourId = $booking->tourSchedule?->tour_id;
         $this->logUserActivity($request->user(), $tourId ? (string) $tourId : null, 'booking_cancelled');
+        $booking->loadMissing('user', 'tourSchedule.tour');
+        $this->notifications->notify($booking->user, new BookingCancelledNotification($booking));
 
         return response()->json([
             'message' => 'Booking cancelled successfully.',
