@@ -46,7 +46,7 @@ class RecommendationService
         $pipeline = $this->buildPipeline($user, $candidateLimit);
 
         if ($pipeline->isEmpty()) {
-            $pipeline = $this->popularFallback($candidateLimit);
+            return $this->storeRecommendation($user, collect());
         }
 
         return $this->storeRecommendation($user, $pipeline->take($limit));
@@ -83,6 +83,35 @@ class RecommendationService
                 'reasons' => $item['reasons'] ?? [],
             ];
         })->filter();
+    }
+
+    public function hasPersonalizationSignals(User $user): bool
+    {
+        $userId = $user->id;
+
+        $recentEvents = AnalyticsEvent::query()
+            ->where('user_id', $userId)
+            ->whereIn('event_name', array_keys(self::EVENT_WEIGHTS))
+            ->limit(1)
+            ->exists();
+
+        if ($recentEvents) {
+            return true;
+        }
+
+        $recentBookings = Booking::query()
+            ->where('user_id', $userId)
+            ->limit(1)
+            ->exists();
+
+        if ($recentBookings) {
+            return true;
+        }
+
+        return Wishlist::query()
+            ->where('user_id', $userId)
+            ->limit(1)
+            ->exists();
     }
 
     public function similarTours(Tour $tour, int $limit = 10): Collection

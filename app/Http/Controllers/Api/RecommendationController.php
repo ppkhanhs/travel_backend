@@ -21,11 +21,16 @@ class RecommendationController extends Controller
 
         $generatedAt = optional($user->recommendation)->generated_at;
 
+        $hasSignals = $service->hasPersonalizationSignals($user);
+        $count = $recommendations->count();
+
         return RecommendationResource::collection($recommendations)
             ->additional([
                 'meta' => [
                     'generated_at' => optional($generatedAt)->toIso8601String(),
-                    'count' => $recommendations->count(),
+                    'count' => $count,
+                    'has_personalized_signals' => $hasSignals,
+                    'personalized_results' => $count > 0 && $hasSignals,
                 ],
             ]);
     }
