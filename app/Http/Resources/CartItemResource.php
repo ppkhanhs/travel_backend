@@ -14,11 +14,19 @@ class CartItemResource extends JsonResource
         $adultCount = max(0, (int) $this->adult_quantity);
         $childCount = max(0, (int) $this->child_quantity);
 
+        $discountMultiplier = 1.0;
+        if ($tour && $tour->base_price && $tour->price_after_discount !== null) {
+            $basePrice = (float) $tour->base_price;
+            if ($basePrice > 0) {
+                $discountMultiplier = max(0, (float) $tour->price_after_discount / $basePrice);
+            }
+        }
+
         $baseAdultUnit = $package
-            ? (float) ($package->adult_price ?? 0)
+            ? (float) ($package->adult_price ?? 0) * $discountMultiplier
             : (float) ($tour->price_after_discount ?? $tour->base_price ?? 0);
         $baseChildUnit = $package
-            ? (float) ($package->child_price ?? $package->adult_price ?? 0)
+            ? (float) ($package->child_price ?? $package->adult_price ?? 0) * $discountMultiplier
             : $baseAdultUnit * 0.75;
 
         $subtotal = ($baseAdultUnit * $adultCount) + ($baseChildUnit * $childCount);
