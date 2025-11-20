@@ -11,16 +11,19 @@ class CartItemResource extends JsonResource
         $tour = $this->whenLoaded('tour');
         $schedule = $this->whenLoaded('schedule');
         $package = $this->whenLoaded('package');
+        $adultCount = max(0, (int) $this->adult_quantity);
+        $childCount = max(0, (int) $this->child_quantity);
 
-        $unitPrice = $package
+        $baseAdultUnit = $package
             ? (float) ($package->adult_price ?? 0)
-            : (float) ($tour->base_price ?? 0);
-
-        $adultPrice = $unitPrice * (int) $this->adult_quantity;
-        $childUnit = $package
+            : (float) ($tour->price_after_discount ?? $tour->base_price ?? 0);
+        $baseChildUnit = $package
             ? (float) ($package->child_price ?? $package->adult_price ?? 0)
-            : (float) ($tour->base_price ?? 0) * 0.75;
-        $childPrice = $childUnit * (int) $this->child_quantity;
+            : $baseAdultUnit * 0.75;
+
+        $subtotal = ($baseAdultUnit * $adultCount) + ($baseChildUnit * $childCount);
+        $effectiveAdult = $baseAdultUnit;
+        $effectiveChild = $baseChildUnit;
 
         return [
             'id' => $this->id,
@@ -30,11 +33,11 @@ class CartItemResource extends JsonResource
             'adult_quantity' => (int) $this->adult_quantity,
             'child_quantity' => (int) $this->child_quantity,
             'pricing' => [
-                'adult_unit' => $unitPrice,
-                'child_unit' => $childUnit,
-                'adult_subtotal' => $adultPrice,
-                'child_subtotal' => $childPrice,
-                'subtotal' => $adultPrice + $childPrice,
+                'adult_unit' => $effectiveAdult,
+                'child_unit' => $effectiveChild,
+                'adult_subtotal' => $effectiveAdult * $adultCount,
+                'child_subtotal' => $effectiveChild * $childCount,
+                'subtotal' => $subtotal,
             ],
             'tour' => $tour ? [
                 'id' => $tour->id,

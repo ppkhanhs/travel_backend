@@ -9,6 +9,7 @@ use App\Models\CartItem;
 use App\Models\Tour;
 use App\Models\TourPackage;
 use App\Models\TourSchedule;
+use App\Services\AutoPromotionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,16 +17,28 @@ use Illuminate\Validation\ValidationException;
 
 class CartController extends Controller
 {
+    public function __construct(private AutoPromotionService $autoPromotions)
+    {
+    }
+
     public function show(Request $request): CartResource
     {
         $cart = $this->getOrCreateCart($request->user()->id);
 
         $cart->load([
-            'items.tour',
-            'items.tour.cancellationPolicies',
-            'items.schedule',
-            'items.package',
+            'items' => function ($query) {
+                $query->with([
+                    'tour.cancellationPolicies',
+                    'schedule',
+                    'package',
+                ]);
+            },
         ]);
+
+        $tours = $cart->items->pluck('tour')->filter();
+        if ($tours->isNotEmpty()) {
+            $this->autoPromotions->attachToTours($tours);
+        }
 
         return new CartResource($cart);
     }
