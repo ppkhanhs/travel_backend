@@ -37,11 +37,14 @@ class SepayService
 
     public function createPaymentLink(Payment $payment, Booking $booking, string $notifyUrl, ?string $returnUrl = null): string
     {
+        // Sử dụng số tiền thực thu (đã trừ khuyến mãi) thay vì amount gốc
+        $payableAmount = (int) max(0, round(($payment->amount ?? 0) - ($payment->discount_amount ?? 0)));
+
         $payload = [
             'merchant_code' => $this->merchantCode,
             'api_key' => $this->apiKey,
             'order_code' => $payment->id,
-            'amount' => (int) round($payment->amount),
+            'amount' => $payableAmount,
             'description' => sprintf('Thanh toan booking %s', $booking->id),
             'buyer_name' => $booking->contact_name ?? $booking->user?->name,
             'buyer_email' => $booking->contact_email ?? $booking->user?->email,
@@ -103,7 +106,16 @@ class SepayService
             return null;
         }
 
-        $amount = (int) round($payment->amount ?? $booking->total_price ?? 0);
+        // Ưu tiên số tiền thực thu (sau khuyến mãi) cho mã QR tĩnh
+        $amount = (int) max(
+            0,
+            round(($payment->amount ?? 0) - ($payment->discount_amount ?? 0))
+        );
+        // Fallback: nếu payment chưa có discount_amount, dùng total_price từ booking
+        if ($amount === 0 && isset($booking->total_price)) {
+            $amount = (int) round($booking->total_price);
+        }
+
         $description = sprintf('%s%s', $this->staticDescriptionPattern, $booking->id);
 
         $query = http_build_query([
