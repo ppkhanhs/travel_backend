@@ -120,7 +120,20 @@ class BookingResource extends JsonResource
         }
 
         $baseUrl = rtrim(config('sepay.qr_url', 'https://qr.sepay.vn/img'), '/');
-        $amount = (int) round($this->total_price ?? 0);
+        // Ưu tiên số tiền thực thu của payment (đã trừ khuyến mãi)
+        $latestSepay = $payments
+            ->where('method', 'sepay')
+            ->sortByDesc(fn ($payment) => [$payment->paid_at, $payment->id])
+            ->first();
+
+        $amount = (int) max(
+            0,
+            round(($latestSepay?->amount ?? 0) - ($latestSepay?->discount_amount ?? 0))
+        );
+        if ($amount === 0) {
+            $amount = (int) round($this->total_price ?? 0);
+        }
+
         $pattern = (string) config('sepay.pattern', 'BOOKING-');
         $description = sprintf('%s%s', $pattern, $this->id);
 

@@ -184,7 +184,8 @@ class PaymentController extends Controller
         $paidAmount = $booking->payments
             ->where('status', 'success')
             ->sum(function (Payment $payment) {
-                return (float) $payment->amount;
+                $discount = (float) ($payment->discount_amount ?? 0);
+                return (float) max(0, ($payment->amount ?? 0) - $discount);
             });
 
         $outstanding = round(max(0, ($booking->total_price ?? 0) - $paidAmount), 2);
@@ -224,6 +225,8 @@ class PaymentController extends Controller
                 'method' => $payment->method,
                 'status' => $payment->status,
                 'amount' => $payment->amount,
+                'discount_amount' => $payment->discount_amount,
+                'payable_amount' => max(0, ($payment->amount ?? 0) - ($payment->discount_amount ?? 0)),
             ],
             'payment_url' => $paymentUrl,
             'payment_qr_url' => $paymentQrUrl,

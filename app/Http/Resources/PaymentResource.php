@@ -12,6 +12,8 @@ class PaymentResource extends JsonResource
             'id' => $this->id,
             'method' => $this->method,
             'amount' => $this->amount,
+            'discount_amount' => $this->discount_amount,
+            'payable_amount' => max(0, ($this->amount ?? 0) - ($this->discount_amount ?? 0)),
             'tax' => $this->tax,
             'total_amount' => $this->total_amount,
             'refund_amount' => $this->refund_amount,
