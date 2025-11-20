@@ -150,6 +150,8 @@ class PaymentController extends Controller
                 'method' => $latestPayment->method,
                 'status' => $latestPayment->status,
                 'amount' => $latestPayment->amount,
+                'discount_amount' => $latestPayment->discount_amount,
+                'payable_amount' => max(0, ($latestPayment->amount ?? 0) - ($latestPayment->discount_amount ?? 0)),
                 'paid_at' => optional($latestPayment->paid_at)->toIso8601String(),
             ] : null,
         ]);

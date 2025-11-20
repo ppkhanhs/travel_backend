@@ -24,6 +24,7 @@ class Payment extends Model
         'booking_id',
         'method',
         'amount',
+        'discount_amount',
         'tax',
         'total_amount',
         'invoice_number',

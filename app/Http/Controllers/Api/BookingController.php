@@ -219,7 +219,8 @@ class BookingController extends Controller
             $payment = Payment::create([
                 'booking_id' => $booking->id,
                 'method' => $data['payment_method'],
-                'amount' => $totalPrice,
+                'amount' => $subTotal,
+                'discount_amount' => $subTotal - $totalPrice,
                 'tax' => 0,
                 'status' => 'pending',
             ]);
