@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\RefundRequest;
 use App\Notifications\RefundRequestCreatedNotification;
 use App\Notifications\RefundRequestUpdatedNotification;
+use App\Notifications\AdminBookingNotification;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -101,6 +102,7 @@ class RefundController extends Controller
 
         $refund->load(['partner.user']);
         $this->notifications->notify($refund->partner?->user, new RefundRequestCreatedNotification($refund));
+        $this->notifications->notifyAdmins(new AdminBookingNotification($booking, 'refund_requested'));
 
         return response()->json([
             'message' => 'Refund request submitted successfully.',
@@ -159,6 +161,10 @@ class RefundController extends Controller
         });
 
         $this->notifications->notify($refund->partner?->user, new RefundRequestUpdatedNotification($refund));
+        $booking = $refund->booking ?? Booking::find($refund->booking_id);
+        if ($booking) {
+            $this->notifications->notifyAdmins(new AdminBookingNotification($booking, 'refund_requested'));
+        }
 
         return response()->json([
             'message' => 'Thank you! Refund has been confirmed.',
