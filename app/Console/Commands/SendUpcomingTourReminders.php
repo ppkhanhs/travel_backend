@@ -10,39 +10,44 @@ use Illuminate\Support\Carbon;
 
 class SendUpcomingTourReminders extends Command
 {
-    protected $signature = 'bookings:upcoming-reminders {--days=2 : Number of days ahead to remind}';
+    protected $signature = 'bookings:upcoming-reminders';
 
-    protected $description = 'Send reminders to customers whose tours are about to start';
+    protected $description = 'Send reminders to customers whose tours are about to start (2 và 5 ngày trước)';
 
     public function handle(NotificationService $notifications): int
     {
-        $days = max(1, (int) $this->option('days'));
-        $from = Carbon::today();
-        $to = Carbon::today()->addDays($days);
+        $windows = [
+            5 => 'reminder_5d_sent_at',
+            2 => 'reminder_2d_sent_at',
+        ];
 
-        $bookings = Booking::query()
-            ->with(['user', 'tourSchedule.tour'])
-            ->where('status', 'confirmed')
-            ->whereNull('reminder_sent_at')
-            ->whereHas('tourSchedule', function ($query) use ($from, $to) {
-                $query->whereBetween('start_date', [$from->toDateString(), $to->toDateString()]);
-            })
-            ->get();
+        $totalSent = 0;
 
-        $sent = 0;
+        foreach ($windows as $days => $column) {
+            $targetDate = Carbon::today()->addDays($days)->toDateString();
 
-        foreach ($bookings as $booking) {
-            if (!$booking->user) {
-                continue;
+            $bookings = Booking::query()
+                ->with(['user', 'tourSchedule.tour'])
+                ->where('status', 'confirmed')
+                ->whereNull($column)
+                ->whereHas('tourSchedule', function ($query) use ($targetDate) {
+                    $query->whereDate('start_date', $targetDate);
+                })
+                ->get();
+
+            foreach ($bookings as $booking) {
+                if (!$booking->user) {
+                    continue;
+                }
+
+                $notifications->notify($booking->user, new BookingUpcomingReminderNotification($booking, $days));
+                $booking->{$column} = now();
+                $booking->save();
+                $totalSent++;
             }
-
-            $notifications->notify($booking->user, new BookingUpcomingReminderNotification($booking));
-            $booking->reminder_sent_at = now();
-            $booking->save();
-            $sent++;
         }
 
-        $this->info("Sent {$sent} reminders.");
+        $this->info("Sent {$totalSent} reminders.");
 
         return Command::SUCCESS;
     }

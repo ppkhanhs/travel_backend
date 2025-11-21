@@ -36,6 +36,8 @@ class Booking extends Model
         'contact_phone',
         'notes',
         'reminder_sent_at',
+        'reminder_5d_sent_at',
+        'reminder_2d_sent_at',
         'review_notified_at',
     ];
 
@@ -45,6 +47,8 @@ class Booking extends Model
         'total_adults' => 'integer',
         'total_children' => 'integer',
         'reminder_sent_at' => 'datetime',
+        'reminder_5d_sent_at' => 'datetime',
+        'reminder_2d_sent_at' => 'datetime',
         'review_notified_at' => 'datetime',
     ];
 

@@ -77,6 +77,8 @@ class BookingController extends Controller
                     'start_date' => optional($booking->tourSchedule->start_date)->toDateString(),
                     'end_date' => optional($booking->tourSchedule->end_date)->toDateString(),
                     'min_participants' => $booking->tourSchedule->min_participants,
+                    'pickup_location' => $booking->tourSchedule->pickup_location,
+                    'hotline' => $booking->tourSchedule->hotline,
                 ] : null,
                 'package' => $booking->package ? [
                     'id' => $booking->package->id,

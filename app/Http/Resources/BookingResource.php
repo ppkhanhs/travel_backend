@@ -55,6 +55,8 @@ class BookingResource extends JsonResource
                 'start_date' => optional($schedule->start_date)->toDateString(),
                 'end_date' => optional($schedule->end_date)->toDateString(),
                 'min_participants' => $schedule->min_participants,
+                'pickup_location' => $schedule->pickup_location,
+                'hotline' => $schedule->hotline,
             ] : null,
             'package' => $package ? [
                 'id' => $package->id,

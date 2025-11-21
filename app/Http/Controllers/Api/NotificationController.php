@@ -11,10 +11,16 @@ class NotificationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $notifications = $request->user()
+        $query = $request->user()
             ->notifications()
-            ->latest()
-            ->paginate($request->integer('per_page', 20));
+            ->latest();
+
+        $audience = $request->get('audience');
+        if (is_string($audience) && $audience !== '') {
+            $query->where('data->audience', $audience);
+        }
+
+        $notifications = $query->paginate($request->integer('per_page', 20));
 
         return response()->json($notifications);
     }
@@ -61,4 +67,3 @@ class NotificationController extends Controller
         ]);
     }
 }
-

@@ -28,6 +28,7 @@ class BookingCreatedNotification extends Notification
 
         return [
             'type' => 'booking_created',
+            'audience' => 'customer',
             'title' => 'Đặt tour thành công',
             'message' => sprintf(
                 'Đơn #%s cho tour %s đã được tạo. Chúng tôi sẽ thông báo khi đối tác xác nhận.',

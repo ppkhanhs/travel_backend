@@ -39,6 +39,7 @@ class AdminBookingNotification extends Notification
 
         return [
             'type' => $this->event,
+            'audience' => 'admin',
             'title' => $messages[$this->event] ?? 'Cập nhật booking',
             'message' => $details[$this->event] ?? null,
             'booking_id' => (string) $booking->id,
