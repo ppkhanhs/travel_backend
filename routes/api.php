@@ -141,6 +141,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/partner/tours/{id}', [PartnerTourController::class, 'destroy']);
 
     Route::get('/partner/bookings', [PartnerBookingController::class, 'index']);
+    Route::get('/partner/bookings/{id}', [PartnerBookingController::class, 'show']);
     Route::patch('/partner/bookings/{id}/status', [PartnerBookingController::class, 'updateStatus']);
 
     Route::get('/partner/promotions', [PartnerPromotionController::class, 'index']);

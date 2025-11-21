@@ -37,6 +37,109 @@ class BookingController extends Controller
         return response()->json($bookings);
     }
 
+    public function show(Request $request, string $id): JsonResponse
+    {
+        $partner = $this->getAuthenticatedPartner();
+        if (!$partner) {
+            return response()->json(['message' => 'Partner account is not approved.'], 403);
+        }
+
+        $booking = Booking::with([
+                'tourSchedule.tour.partner',
+                'package',
+                'passengers',
+                'payments',
+                'promotions',
+                'refundRequests',
+                'user',
+            ])
+            ->whereHas('tourSchedule.tour', static fn ($query) => $query->where('partner_id', $partner->id))
+            ->findOrFail($id);
+
+        return response()->json([
+            'data' => [
+                'id' => $booking->id,
+                'status' => $booking->status,
+                'payment_status' => $booking->payment_status,
+                'booking_date' => optional($booking->booking_date)->toIso8601String(),
+                'total_price' => $booking->total_price,
+                'total_adults' => $booking->total_adults,
+                'total_children' => $booking->total_children,
+                'contact' => [
+                    'name' => $booking->contact_name,
+                    'email' => $booking->contact_email,
+                    'phone' => $booking->contact_phone,
+                    'notes' => $booking->notes,
+                ],
+                'tour' => $booking->tourSchedule?->tour?->only(['id', 'title', 'destination', 'type']),
+                'schedule' => $booking->tourSchedule ? [
+                    'id' => $booking->tourSchedule->id,
+                    'start_date' => optional($booking->tourSchedule->start_date)->toDateString(),
+                    'end_date' => optional($booking->tourSchedule->end_date)->toDateString(),
+                    'min_participants' => $booking->tourSchedule->min_participants,
+                ] : null,
+                'package' => $booking->package ? [
+                    'id' => $booking->package->id,
+                    'name' => $booking->package->name,
+                    'adult_price' => (float) $booking->package->adult_price,
+                    'child_price' => (float) $booking->package->child_price,
+                ] : null,
+                'passengers' => $booking->passengers->map(function ($passenger) {
+                    return [
+                        'id' => $passenger->id,
+                        'type' => $passenger->type,
+                        'full_name' => $passenger->full_name,
+                        'gender' => $passenger->gender,
+                        'date_of_birth' => optional($passenger->date_of_birth)->toDateString(),
+                        'document_number' => $passenger->document_number,
+                    ];
+                }),
+                'payments' => $booking->payments->map(function ($payment) {
+                    $payable = max(0, ($payment->amount ?? 0) - ($payment->discount_amount ?? 0));
+
+                    return [
+                        'id' => $payment->id,
+                        'method' => $payment->method,
+                        'status' => $payment->status,
+                        'amount' => $payment->amount,
+                        'discount_amount' => $payment->discount_amount,
+                        'payable_amount' => $payable,
+                        'transaction_code' => $payment->transaction_code,
+                        'invoice_number' => $payment->invoice_number,
+                        'paid_at' => optional($payment->paid_at)->toIso8601String(),
+                    ];
+                }),
+                'promotions' => $booking->promotions->map(function ($promotion) {
+                    return [
+                        'id' => $promotion->id,
+                        'code' => $promotion->code,
+                        'discount_type' => $promotion->pivot->discount_type ?? $promotion->discount_type,
+                        'value' => $promotion->value,
+                        'discount_amount' => (float) ($promotion->pivot->discount_amount ?? 0),
+                    ];
+                }),
+                'refund_requests' => $booking->refundRequests->map(function ($refund) {
+                    return [
+                        'id' => $refund->id,
+                        'status' => $refund->status,
+                        'amount' => $refund->amount,
+                        'currency' => $refund->currency,
+                        'bank_account_name' => $refund->bank_account_name,
+                        'bank_account_number' => $refund->bank_account_number,
+                        'bank_name' => $refund->bank_name,
+                        'bank_branch' => $refund->bank_branch,
+                        'customer_message' => $refund->customer_message,
+                        'partner_message' => $refund->partner_message,
+                        'proof_url' => $refund->proof_url,
+                        'partner_marked_at' => optional($refund->partner_marked_at)->toIso8601String(),
+                        'customer_confirmed_at' => optional($refund->customer_confirmed_at)->toIso8601String(),
+                        'created_at' => optional($refund->created_at)->toIso8601String(),
+                    ];
+                }),
+            ],
+        ]);
+    }
+
     public function updateStatus(Request $request, string $id): JsonResponse
     {
         $partner = $this->getAuthenticatedPartner();

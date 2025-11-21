@@ -30,10 +30,17 @@ class AdminBookingNotification extends Notification
             'payment_success' => 'Booking đã thanh toán',
             'refund_requested' => 'Có yêu cầu hoàn tiền mới',
         ];
+        $details = [
+            'booking_created' => 'Kiểm tra và theo dõi tiến độ xác nhận của đối tác.',
+            'booking_cancelled' => 'Cập nhật báo cáo và các chỉ số liên quan.',
+            'payment_success' => 'Đối chiếu thanh toán, hỗ trợ nếu có phát sinh.',
+            'refund_requested' => 'Xem và giám sát tiến trình xử lý hoàn tiền.',
+        ];
 
         return [
             'type' => $this->event,
             'title' => $messages[$this->event] ?? 'Cập nhật booking',
+            'message' => $details[$this->event] ?? null,
             'booking_id' => (string) $booking->id,
             'tour_id' => $tour ? (string) $tour->id : null,
             'tour_title' => $tour?->title,
