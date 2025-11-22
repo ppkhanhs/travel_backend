@@ -76,6 +76,26 @@ class BookingController extends Controller
         return new BookingResource($booking);
     }
 
+    public function defaultContact(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $lastBooking = Booking::query()
+            ->where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->first();
+
+        $contactName = $lastBooking?->contact_name ?: $user->name;
+        $contactEmail = $lastBooking?->contact_email ?: $user->email;
+        $contactPhone = $lastBooking?->contact_phone ?: $user->phone;
+
+        return response()->json([
+            'contact_name' => $contactName,
+            'contact_email' => $contactEmail,
+            'contact_phone' => $contactPhone,
+        ]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([

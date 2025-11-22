@@ -211,6 +211,8 @@ class PartnerTourController extends Controller
             'schedule.min_participants' => 'required_with:schedule|integer|min:1',
             'schedule.pickup_location' => 'nullable|string',
             'schedule.hotline' => 'nullable|string|max:50',
+            'schedule.departure_location' => 'nullable|string',
+            'schedule.departure_time' => 'nullable|string|max:50',
             'schedules' => 'sometimes|required|array|min:1|max:10',
             'schedules.*.id' => 'sometimes|uuid',
             'schedules.*.start_date' => 'required_with:schedules|date',
@@ -221,6 +223,8 @@ class PartnerTourController extends Controller
             'schedules.*.min_participants' => 'required_with:schedules|integer|min:1',
             'schedules.*.pickup_location' => 'nullable|string',
             'schedules.*.hotline' => 'nullable|string|max:50',
+            'schedules.*.departure_location' => 'nullable|string',
+            'schedules.*.departure_time' => 'nullable|string|max:50',
             'packages' => 'required|array|min:1|max:5',
             'packages.*.name' => 'required|string|max:255',
             'packages.*.description' => 'nullable|string',
@@ -257,6 +261,8 @@ class PartnerTourController extends Controller
             'schedule.min_participants' => 'sometimes|integer|min:1',
             'schedule.pickup_location' => 'sometimes|nullable|string',
             'schedule.hotline' => 'sometimes|nullable|string|max:50',
+            'schedule.departure_location' => 'sometimes|nullable|string',
+            'schedule.departure_time' => 'sometimes|nullable|string|max:50',
             'schedules' => 'sometimes|array|max:15',
             'schedules.*.id' => 'sometimes|uuid',
             'schedules.*.start_date' => 'required_with:schedules|date',
@@ -267,6 +273,8 @@ class PartnerTourController extends Controller
             'schedules.*.min_participants' => 'required_with:schedules|integer|min:1',
             'schedules.*.pickup_location' => 'nullable|string',
             'schedules.*.hotline' => 'nullable|string|max:50',
+            'schedules.*.departure_location' => 'nullable|string',
+            'schedules.*.departure_time' => 'nullable|string|max:50',
             'packages' => 'sometimes|array|max:5',
             'packages.*.id' => 'sometimes|uuid',
             'packages.*.name' => 'required_with:packages|string|max:255',
@@ -368,6 +376,14 @@ class PartnerTourController extends Controller
 
             if (array_key_exists('hotline', $schedule)) {
                 $payload['hotline'] = $schedule['hotline'];
+            }
+
+            if (array_key_exists('departure_location', $schedule)) {
+                $payload['departure_location'] = $schedule['departure_location'];
+            }
+
+            if (array_key_exists('departure_time', $schedule)) {
+                $payload['departure_time'] = $schedule['departure_time'];
             }
 
             if ($hasTimestamps) {
@@ -676,6 +692,14 @@ class PartnerTourController extends Controller
             $data['hotline'] = $data['hotline'];
         }
 
+        if (array_key_exists('departure_location', $data)) {
+            $data['departure_location'] = $data['departure_location'];
+        }
+
+        if (array_key_exists('departure_time', $data)) {
+            $data['departure_time'] = $data['departure_time'];
+        }
+
         if (array_key_exists('min_participants', $data) && $data['min_participants'] !== null) {
             $data['min_participants'] = (int) $data['min_participants'];
         }
@@ -686,6 +710,14 @@ class PartnerTourController extends Controller
 
         if (array_key_exists('hotline', $data)) {
             $data['hotline'] = $data['hotline'];
+        }
+
+        if (array_key_exists('departure_location', $data)) {
+            $data['departure_location'] = $data['departure_location'];
+        }
+
+        if (array_key_exists('departure_time', $data)) {
+            $data['departure_time'] = $data['departure_time'];
         }
 
         return $data;

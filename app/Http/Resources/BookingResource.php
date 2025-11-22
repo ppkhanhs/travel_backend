@@ -57,6 +57,8 @@ class BookingResource extends JsonResource
                 'min_participants' => $schedule->min_participants,
                 'pickup_location' => $schedule->pickup_location,
                 'hotline' => $schedule->hotline,
+                'departure_location' => $schedule->departure_location,
+                'departure_time' => $schedule->departure_time,
             ] : null,
             'package' => $package ? [
                 'id' => $package->id,

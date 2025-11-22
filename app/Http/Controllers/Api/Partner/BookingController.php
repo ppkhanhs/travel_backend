@@ -79,6 +79,8 @@ class BookingController extends Controller
                     'min_participants' => $booking->tourSchedule->min_participants,
                     'pickup_location' => $booking->tourSchedule->pickup_location,
                     'hotline' => $booking->tourSchedule->hotline,
+                    'departure_location' => $booking->tourSchedule->departure_location,
+                    'departure_time' => $booking->tourSchedule->departure_time,
                 ] : null,
                 'package' => $booking->package ? [
                     'id' => $booking->package->id,

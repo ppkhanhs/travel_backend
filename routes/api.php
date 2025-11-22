@@ -72,6 +72,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/toggle', [NotificationController::class, 'toggle']);
 
     Route::get('/bookings', [BookingController::class, 'index']);
+    Route::get('/bookings/default-contact', [BookingController::class, 'defaultContact']);
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
     Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
