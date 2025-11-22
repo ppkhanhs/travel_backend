@@ -26,6 +26,7 @@ class BookingReviewRequestNotification extends Notification
 
         return [
             'type' => 'booking_review_request',
+            'audience' => 'customer',
             'title' => 'Chia sẻ cảm nhận của bạn',
             'message' => sprintf(
                 'Hãy đánh giá tour %s để giúp các khách hàng khác lựa chọn tốt hơn.',

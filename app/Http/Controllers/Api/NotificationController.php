@@ -17,7 +17,10 @@ class NotificationController extends Controller
 
         $audience = $request->get('audience');
         if (is_string($audience) && $audience !== '') {
-            $query->where('data->audience', $audience);
+            $query->where(function ($q) use ($audience) {
+                $q->where('data->audience', $audience)
+                    ->orWhereNull('data->audience');
+            });
         }
 
         $notifications = $query->paginate($request->integer('per_page', 20));

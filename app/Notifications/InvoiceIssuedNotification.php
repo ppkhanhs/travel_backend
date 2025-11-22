@@ -23,6 +23,7 @@ class InvoiceIssuedNotification extends Notification
     {
         return [
             'type' => 'invoice',
+            'audience' => 'customer',
             'title' => 'Hóa đơn đã được phát hành',
             'message' => sprintf(
                 'Hóa đơn %s cho booking %s đã sẵn sàng.',
@@ -35,4 +36,3 @@ class InvoiceIssuedNotification extends Notification
         ];
     }
 }
-

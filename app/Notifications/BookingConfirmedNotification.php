@@ -28,6 +28,7 @@ class BookingConfirmedNotification extends Notification
 
         return [
             'type' => 'booking_confirmed',
+            'audience' => 'customer',
             'title' => 'Tour đã được xác nhận',
             'message' => sprintf(
                 'Đối tác đã xác nhận đơn #%s cho tour %s. Hãy chuẩn bị cho chuyến đi của bạn!',

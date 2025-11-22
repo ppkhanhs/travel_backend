@@ -23,7 +23,8 @@ class RefundRequestUpdatedNotification extends Notification
     {
         return [
             'type' => 'refund_update',
-            'title' => 'Yêu cầu hoàn tiền đã được cập nhật',
+            'audience' => 'partner',
+            'title' => 'Yêu cầu hoàn tiền đã cập nhật',
             'message' => sprintf(
                 'Trạng thái yêu cầu hoàn tiền cho đơn %s hiện là %s.',
                 $this->refund->booking_id,
@@ -35,4 +36,3 @@ class RefundRequestUpdatedNotification extends Notification
         ];
     }
 }
-

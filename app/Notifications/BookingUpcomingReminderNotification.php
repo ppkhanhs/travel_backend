@@ -31,6 +31,7 @@ class BookingUpcomingReminderNotification extends Notification
 
         return [
             'type' => 'booking_upcoming',
+            'audience' => 'customer',
             'title' => $this->daysAhead === 5
                 ? 'Tour sắp khởi hành (còn 5 ngày)'
                 : 'Tour sắp khởi hành (còn 2 ngày)',

@@ -26,6 +26,7 @@ class BookingCompletedNotification extends Notification
 
         return [
             'type' => 'booking_completed',
+            'audience' => 'customer',
             'title' => 'Chuyến đi đã hoàn thành',
             'message' => sprintf(
                 'Cảm ơn bạn đã đồng hành cùng %s. Hy vọng bạn đã có trải nghiệm tuyệt vời!',

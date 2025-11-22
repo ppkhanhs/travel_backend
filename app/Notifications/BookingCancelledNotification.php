@@ -30,6 +30,7 @@ class BookingCancelledNotification extends Notification
 
         return [
             'type' => 'booking_cancelled',
+            'audience' => 'customer',
             'title' => 'Hủy tour',
             'message' => $message,
             'booking_id' => (string) $booking->id,

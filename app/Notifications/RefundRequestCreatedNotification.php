@@ -23,9 +23,10 @@ class RefundRequestCreatedNotification extends Notification
     {
         return [
             'type' => 'refund_request',
-            'title' => 'Yêu cầu hoàn tiền mới',
+            'audience' => 'partner',
+            'title' => 'Khách gửi yêu cầu hoàn tiền',
             'message' => sprintf(
-                'Khách hàng yêu cầu hoàn %s VND cho đơn %s.',
+                'Khách yêu cầu hoàn %s VND cho đơn %s.',
                 number_format($this->refund->amount, 0, '.', ','),
                 $this->refund->booking_id
             ),
@@ -35,4 +36,3 @@ class RefundRequestCreatedNotification extends Notification
         ];
     }
 }
-

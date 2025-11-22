@@ -28,6 +28,7 @@ class BookingPaymentSuccessNotification extends Notification
 
         return [
             'type' => 'payment_success',
+            'audience' => 'customer',
             'title' => 'Thanh toán thành công',
             'message' => sprintf(
                 'Thanh toán cho đơn #%s đã được xác nhận. Chúng tôi sẽ cập nhật tình trạng tour trong thời gian sớm nhất.',

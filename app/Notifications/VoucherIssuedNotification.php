@@ -23,15 +23,18 @@ class VoucherIssuedNotification extends Notification
     {
         $promotion = $this->assignment->promotion;
 
+        $valueText = $promotion && in_array(strtolower($promotion->discount_type ?? ''), ['percent', 'percentage'])
+            ? $promotion->value . '%'
+            : number_format($promotion->value ?? 0, 0, '.', ',') . ' VND';
+
         return [
             'type' => 'voucher',
+            'audience' => 'customer',
             'title' => 'Voucher mới đã được tặng',
             'message' => sprintf(
                 'Mã %s giảm %s đã được tặng cho bạn.',
                 $this->assignment->voucher_code,
-                $promotion && in_array(strtolower($promotion->discount_type ?? ''), ['percent', 'percentage'])
-                    ? $promotion->value . '%'
-                    : number_format($promotion->value ?? 0, 0, '.', ',') . ' VND'
+                $valueText
             ),
             'voucher_code' => $this->assignment->voucher_code,
             'promotion_id' => $promotion?->id,
@@ -40,4 +43,3 @@ class VoucherIssuedNotification extends Notification
         ];
     }
 }
-
