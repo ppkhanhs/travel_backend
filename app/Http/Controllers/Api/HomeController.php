@@ -3,18 +3,24 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\RecommendationResource;
 use App\Models\Category;
 use App\Models\Promotion;
 use App\Models\Tour;
 use App\Services\AutoPromotionService;
+use App\Services\RecommendationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class HomeController extends Controller
 {
-    public function __construct(private AutoPromotionService $autoPromotions)
+    public function __construct(
+        private AutoPromotionService $autoPromotions,
+        private RecommendationService $recommendations
+    )
     {
     }
 
@@ -31,12 +37,14 @@ class HomeController extends Controller
             ->limit($promotionsLimit)
             ->get();
         $trending = $this->getTrendingTours($trendingLimit);
+        $recommendedBlock = $this->buildRecommendationsBlock($request);
 
         return response()->json([
             'categories' => $categories,
             'promotions' => $promotions,
             'trending' => $trending,
-            'recommended' => [], // personalize recommendations will be added later
+            'recommended' => $recommendedBlock['items'],
+            'recommendations_meta' => $recommendedBlock['meta'],
         ]);
     }
 
@@ -114,5 +122,70 @@ class HomeController extends Controller
         $this->autoPromotions->attachToTours($tours);
 
         return $tours;
+    }
+
+    private function buildRecommendationsBlock(Request $request): array
+    {
+        $user = $this->resolveOptionalUser($request);
+        $meta = [
+            'count' => 0,
+            'generated_at' => null,
+            'has_personalized_signals' => false,
+            'personalized_results' => false,
+        ];
+
+        if (!$user) {
+            return [
+                'items' => [],
+                'meta' => $meta,
+            ];
+        }
+
+        $limit = max(1, min(20, (int) $request->integer('recommended_limit', 8)));
+
+        $recommendations = $this->recommendations->getRecommendations($user, $limit);
+        $recommendedTours = $recommendations
+            ->pluck('tour')
+            ->filter(function ($tour) {
+                return $tour instanceof Tour;
+            });
+
+        if ($recommendedTours->isNotEmpty()) {
+            $this->autoPromotions->attachToTours($recommendedTours);
+        }
+
+        $items = RecommendationResource::collection($recommendations)->toArray($request);
+
+        $hasSignals = $this->recommendations->hasPersonalizationSignals($user);
+        $meta = [
+            'count' => $recommendations->count(),
+            'generated_at' => optional($user->recommendation)->generated_at
+                ? $user->recommendation->generated_at->toIso8601String()
+                : null,
+            'has_personalized_signals' => $hasSignals,
+            'personalized_results' => $recommendations->count() > 0 && $hasSignals,
+        ];
+
+        return [
+            'items' => $items,
+            'meta' => $meta,
+        ];
+    }
+
+    private function resolveOptionalUser(Request $request): ?\App\Models\User
+    {
+        $user = $request->user();
+
+        if ($user) {
+            return $user;
+        }
+
+        $guard = Auth::guard('sanctum');
+
+        if (method_exists($guard, 'setRequest')) {
+            $guard->setRequest($request);
+        }
+
+        return $guard->user();
     }
 }
