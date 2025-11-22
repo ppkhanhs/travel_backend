@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Payment;
 use App\Notifications\BookingPaymentSuccessNotification;
-use App\Notifications\AdminBookingNotification;
 use App\Notifications\PartnerBookingNotification;
 use App\Services\NotificationService;
 use App\Services\SepayService;
@@ -100,7 +99,6 @@ class PaymentController extends Controller
 
             if ($booking) {
                 $this->notifications->notifyPartnerByBooking($booking, new PartnerBookingNotification($booking, 'payment_success'));
-                $this->notifications->notifyAdmins(new AdminBookingNotification($booking, 'payment_success'));
             }
         }
 
