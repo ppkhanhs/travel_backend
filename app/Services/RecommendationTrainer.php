@@ -500,8 +500,6 @@ class RecommendationTrainer
             $fields[] = implode(' ', array_filter($tour->tags));
         }
 
-        $fields[] = $tour->type ?? '';
-
         foreach ($fields as $field) {
             $terms = array_merge($terms, $this->tokenize((string) $field));
         }

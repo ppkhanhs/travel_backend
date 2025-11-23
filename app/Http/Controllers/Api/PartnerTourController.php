@@ -106,6 +106,16 @@ class PartnerTourController extends Controller
             return $this->buildTourPayload($tourId, $partner->id);
         });
 
+        // Notify admin review
+        app(\App\Services\NotificationService::class)->notifyAdmins(
+            new \App\Notifications\AdminAlertNotification(
+                'partner_tour_pending',
+                'Tour mới chờ duyệt',
+                sprintf('Đối tác %s tạo tour mới cần duyệt.', $partner->company_name ?? 'không rõ'),
+                ['tour_id' => $tourId]
+            )
+        );
+
         return response()->json(array_merge([
             'message' => 'Tour created successfully. Await admin review.',
             'id' => $tourId,
@@ -153,6 +163,15 @@ class PartnerTourController extends Controller
         });
 
         $payload = $this->buildTourPayload($id, $partner->id);
+
+        app(\App\Services\NotificationService::class)->notifyAdmins(
+            new \App\Notifications\AdminAlertNotification(
+                'partner_tour_updated',
+                'Tour chỉnh sửa chờ duyệt',
+                sprintf('Đối tác %s vừa chỉnh sửa tour cần duyệt.', $partner->company_name ?? 'không rõ'),
+                ['tour_id' => $id]
+            )
+        );
 
         return response()->json(array_merge([
             'message' => 'Tour updated successfully.',

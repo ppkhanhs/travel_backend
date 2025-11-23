@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use App\Models\User;
+use App\Notifications\AdminAlertNotification;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -47,10 +49,18 @@ class PartnerRegistrationController extends Controller
             'status' => 'pending',
         ]);
 
+        app(NotificationService::class)->notifyAdmins(
+            new AdminAlertNotification(
+                'partner_registration',
+                'Đối tác mới đăng ký',
+                sprintf('Đối tác %s vừa đăng ký, cần duyệt hồ sơ.', $partner->company_name ?? 'N/A'),
+                ['partner_id' => $partner->id]
+            )
+        );
+
         return response()->json([
             'message' => 'Chúng tôi đã nhận được thông tin. Đội ngũ xét duyệt sẽ liên hệ trong thời gian sớm nhất.',
             'partner' => $partner,
         ], 201);
     }
 }
-
