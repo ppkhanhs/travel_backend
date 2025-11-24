@@ -157,6 +157,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 // Admin routes
 Route::middleware(['auth:sanctum', 'ensure_admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', AdminDashboardController::class);
+    Route::get('/reports/summary', [\App\Http\Controllers\Api\Admin\ReportController::class, 'summary']);
 
     Route::get('/users', [AdminUserController::class, 'index']);
     Route::get('/users/{id}', [AdminUserController::class, 'show']);
