@@ -12,17 +12,25 @@ class ChatbotService
     private string $apiKey;
     private string $model;
     private int $timeout;
+    private string $apiVersion;
     private string $endpoint;
     private HttpFactory $http;
 
     public function __construct(HttpFactory $http)
     {
         $this->apiKey = (string) config('services.gemini.api_key', '');
-        $this->model = (string) config('services.gemini.model', 'gemini-1.5-flash');
+        $this->model = (string) config('services.gemini.model', 'gemini-1.5-flash-latest');
         $this->timeout = (int) config('services.gemini.timeout', 15);
+
+        $configuredVersion = (string) config('services.gemini.version', '');
+        $this->apiVersion = $configuredVersion !== ''
+            ? (($configuredVersion === 'v1' && str_starts_with($this->model, 'gemini-2')) ? 'v1beta' : $configuredVersion)
+            : (str_starts_with($this->model, 'gemini-2') ? 'v1beta' : 'v1');
+
         $this->http = $http;
         $this->endpoint = sprintf(
-            'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent',
+            'https://generativelanguage.googleapis.com/%s/models/%s:generateContent',
+            $this->apiVersion,
             $this->model
         );
     }
