@@ -26,10 +26,14 @@ class ChatController extends Controller
         $data = $request->validate([
             'message' => 'required|string|max:2000',
             'language' => 'nullable|string',
+            'history' => 'nullable|array|max:10',
+            'history.*.role' => 'required_with:history|string|in:user,assistant',
+            'history.*.content' => 'required_with:history|string|max:2000',
         ]);
 
         $language = $this->normalizeLanguage($data['language'] ?? 'vi');
         $user = $request->user();
+        $history = $this->sanitizeHistory($data['history'] ?? []);
 
         $tours = $this->getCandidateTours($user);
         $promotions = $this->getHighlightedPromotions();
@@ -43,7 +47,7 @@ class ChatController extends Controller
             $context
         );
 
-        $reply = $this->chatbot->ask($systemPrompt, $userPrompt);
+        $reply = $this->chatbot->ask($systemPrompt, $userPrompt, $history);
 
         return response()->json([
             'reply' => $reply,
@@ -135,6 +139,17 @@ class ChatController extends Controller
             $tourLines ?: 'Không có tour nổi bật.',
             $promotionLines ?: 'Không có khuyến mãi công khai.'
         ));
+    }
+
+    private function sanitizeHistory(array $history): array
+    {
+        return collect($history)
+            ->take(10)
+            ->map(fn ($item) => [
+                'role' => $item['role'],
+                'content' => $item['content'],
+            ])
+            ->all();
     }
 
     private function buildSystemPrompt(string $language): string

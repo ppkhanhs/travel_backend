@@ -35,13 +35,35 @@ class ChatbotService
         );
     }
 
-    public function ask(string $systemPrompt, string $userPrompt): string
+    public function ask(string $systemPrompt, string $userPrompt, array $history = []): string
     {
         if ($this->apiKey === '') {
             throw ValidationException::withMessages([
                 'message' => ['Chatbot service is not configured.'],
             ]);
         }
+
+        $contents = [];
+
+        foreach ($history as $message) {
+            $contents[] = [
+                'role' => $message['role'],
+                'parts' => [
+                    [
+                        'text' => $message['content'],
+                    ],
+                ],
+            ];
+        }
+
+        $contents[] = [
+            'role' => 'user',
+            'parts' => [
+                [
+                    'text' => $userPrompt,
+                ],
+            ],
+        ];
 
         $payload = [
             'system_instruction' => [
@@ -51,16 +73,7 @@ class ChatbotService
                     ],
                 ],
             ],
-            'contents' => [
-                [
-                    'role' => 'user',
-                    'parts' => [
-                        [
-                            'text' => $userPrompt,
-                        ],
-                    ],
-                ],
-            ],
+            'contents' => $contents,
             'generationConfig' => [
                 'temperature' => 0.7,
                 'topP' => 0.9,
