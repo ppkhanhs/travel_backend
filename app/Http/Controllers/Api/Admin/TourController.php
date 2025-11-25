@@ -8,6 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Notifications\PartnerTourReviewNotification;
+use App\Services\NotificationService;
 
 class TourController extends Controller
 {
@@ -72,6 +74,20 @@ class TourController extends Controller
             $tour->status = $data['status'];
             $tour->save();
         });
+
+        if (in_array($tour->status, ['approved', 'rejected'], true)) {
+            $partnerUser = $tour->partner?->user;
+            if ($partnerUser) {
+                app(NotificationService::class)->notify(
+                    $partnerUser,
+                    new PartnerTourReviewNotification(
+                        (string) $tour->id,
+                        $tour->title ?? 'Tour',
+                        $tour->status
+                    )
+                );
+            }
+        }
 
         return response()->json([
             'message' => 'Cập nhật trạng thái tour thành công.',
