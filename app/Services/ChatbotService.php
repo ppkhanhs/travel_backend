@@ -12,14 +12,19 @@ class ChatbotService
     private string $apiKey;
     private string $model;
     private int $timeout;
+    private string $endpoint;
     private HttpFactory $http;
 
     public function __construct(HttpFactory $http)
     {
-        $this->apiKey = (string) config('services.openai.api_key', '');
-        $this->model = (string) config('services.openai.model', 'gpt-4o');
-        $this->timeout = (int) config('services.openai.timeout', 15);
+        $this->apiKey = (string) config('services.gemini.api_key', '');
+        $this->model = (string) config('services.gemini.model', 'gemini-1.5-flash');
+        $this->timeout = (int) config('services.gemini.timeout', 15);
         $this->http = $http;
+        $this->endpoint = sprintf(
+            'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent',
+            $this->model
+        );
     }
 
     public function ask(string $systemPrompt, string $userPrompt): string
@@ -31,30 +36,40 @@ class ChatbotService
         }
 
         $payload = [
-            'model' => $this->model,
-            'messages' => [
-                [
-                    'role' => 'system',
-                    'content' => $systemPrompt,
-                ],
-                [
-                    'role' => 'user',
-                    'content' => $userPrompt,
+            'system_instruction' => [
+                'parts' => [
+                    [
+                        'text' => $systemPrompt,
+                    ],
                 ],
             ],
-            'temperature' => 0.7,
-            'top_p' => 0.9,
+            'contents' => [
+                [
+                    'role' => 'user',
+                    'parts' => [
+                        [
+                            'text' => $userPrompt,
+                        ],
+                    ],
+                ],
+            ],
+            'generationConfig' => [
+                'temperature' => 0.7,
+                'topP' => 0.9,
+            ],
         ];
 
         $response = $this->http
             ->timeout($this->timeout)
-            ->withToken($this->apiKey)
-            ->post('https://api.openai.com/v1/chat/completions', $payload);
+            ->withHeaders([
+                'x-goog-api-key' => $this->apiKey,
+            ])
+            ->post($this->endpoint, $payload);
 
         $this->guardResponse($response);
 
         $data = $response->json();
-        $message = $data['choices'][0]['message']['content'] ?? null;
+        $message = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
 
         if (!$message) {
             throw ValidationException::withMessages([
@@ -74,7 +89,7 @@ class ChatbotService
         $body = $response->json();
         $error = $body['error']['message'] ?? $response->body();
 
-        Log::error('[Chatbot] OpenAI API error', [
+        Log::error('[Chatbot] Gemini API error', [
             'status' => $response->status(),
             'body' => $response->body(),
         ]);
@@ -84,4 +99,3 @@ class ChatbotService
         ]);
     }
 }
-
