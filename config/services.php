@@ -63,6 +63,7 @@ return [
         'model' => env('GEMINI_MODEL', 'gemini-1.5-flash-latest'),
         'timeout' => env('GEMINI_TIMEOUT', 15),
         'version' => env('GEMINI_API_VERSION', 'v1beta'),
+        'max_output_tokens' => env('GEMINI_MAX_OUTPUT_TOKENS', null),
     ],
 
 ];

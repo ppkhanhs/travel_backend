@@ -103,15 +103,15 @@ class ChatController extends Controller
             $priceAfter = $tour->price_after_discount ?? $tour->base_price;
 
             return sprintf(
-                "- %s (%s, %s ngày)\n  Giá: %s VND%s\n  Khởi hành gần nhất: %s\n  Tags: %s\n  Mô tả: %s",
+                "- %s (%s, %s ngÃ y)\n  GiÃ¡: %s VND%s\n  Khá»Ÿi hÃ nh gáº§n nháº¥t: %s\n  Tags: %s\n  MÃ´ táº£: %s",
                 $tour->title,
                 $tour->destination,
                 $tour->duration ?? 'N/A',
                 number_format((float) $priceAfter, 0, '.', ','),
                 $tour->auto_promotion
-                    ? sprintf(" (đã giảm %s)", $tour->auto_promotion['description'] ?? 'khuyến mãi tự động')
+                    ? sprintf(" (Ä‘Ã£ giáº£m %s)", $tour->auto_promotion['description'] ?? 'khuyáº¿n mÃ£i tá»± Ä‘á»™ng')
                     : '',
-                $schedule?->start_date?->format('d/m/Y') ?? 'Không có',
+                $schedule?->start_date?->format('d/m/Y') ?? 'KhÃ´ng cÃ³',
                 implode(', ', $tour->categories->pluck('name')->all()),
                 Str::of($tour->description)->limit(120)
             );
@@ -119,7 +119,7 @@ class ChatController extends Controller
 
         $promotionLines = $promotions->map(function (Promotion $promotion) {
             return sprintf(
-                "- Mã %s: giảm %s (%s - %s)",
+                "- MÃ£ %s: giáº£m %s (%s - %s)",
                 $promotion->code,
                 $promotion->discount_type === 'fixed'
                     ? number_format($promotion->value, 0, '.', ',') . ' VND'
@@ -130,14 +130,14 @@ class ChatController extends Controller
         })->implode("\n");
 
         $profile = $user
-            ? sprintf("Người dùng: %s, email: %s.", $user->name, $user->email)
-            : 'Người dùng chưa đăng nhập.';
+            ? sprintf("NgÆ°á»i dÃ¹ng: %s, email: %s.", $user->name, $user->email)
+            : 'NgÆ°á»i dÃ¹ng chÆ°a Ä‘Äƒng nháº­p.';
 
         return trim(sprintf(
-            "%s\n\nTour đề xuất:\n%s\n\nMã khuyến mãi đang hoạt động:\n%s",
+            "%s\n\nTour Ä‘á» xuáº¥t:\n%s\n\nMÃ£ khuyáº¿n mÃ£i Ä‘ang hoáº¡t Ä‘á»™ng:\n%s",
             $profile,
-            $tourLines ?: 'Không có tour nổi bật.',
-            $promotionLines ?: 'Không có khuyến mãi công khai.'
+            $tourLines ?: 'KhÃ´ng cÃ³ tour ná»•i báº­t.',
+            $promotionLines ?: 'KhÃ´ng cÃ³ khuyáº¿n mÃ£i cÃ´ng khai.'
         ));
     }
 
@@ -152,7 +152,7 @@ class ChatController extends Controller
             ->all();
     }
 
-    private function buildSystemPrompt(string $language): string
+        private function buildSystemPrompt(string $language): string
     {
         $langInstruction = $language === 'en'
             ? 'Respond in fluent English. If user switches to Vietnamese, follow their preference.'
@@ -164,7 +164,9 @@ You are TravelMate, an AI travel assistant for a Southeast Asia tour platform.
 - Mention price after discount when available and remind users discounts are dynamic.
 - Offer to help filter by destination, budget, or travel date.
 - Never fabricate data; if context lacking, say you will pass request to human agent.
-- Keep answers concise (<= 4 paragraphs) and add bullet lists when listing tours.
+- Default: keep answers within 5 sentences or 5 bullets; avoid long prose.
+- If user asks to be short/brief/concise, answer within 2 sentences or 3 bullets max.
+- When listing tours, show at most 3 items with price succinctly; avoid filler.
 - $langInstruction
 PROMPT;
     }

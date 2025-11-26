@@ -13,6 +13,7 @@ class ChatbotService
     private string $model;
     private int $timeout;
     private string $apiVersion;
+    private ?int $maxOutputTokens = null;
     private string $endpoint;
     private HttpFactory $http;
 
@@ -26,6 +27,9 @@ class ChatbotService
         $this->apiVersion = $configuredVersion !== ''
             ? (($configuredVersion === 'v1' && str_starts_with($this->model, 'gemini-2')) ? 'v1beta' : $configuredVersion)
             : (str_starts_with($this->model, 'gemini-2') ? 'v1beta' : 'v1');
+
+        $maxTokens = config('services.gemini.max_output_tokens');
+        $this->maxOutputTokens = $maxTokens !== null ? (int) $maxTokens : null;
 
         $this->http = $http;
         $this->endpoint = sprintf(
@@ -77,6 +81,7 @@ class ChatbotService
             'generationConfig' => [
                 'temperature' => 0.7,
                 'topP' => 0.9,
+                'maxOutputTokens' => $this->maxOutputTokens ?: null,
             ],
         ];
 
