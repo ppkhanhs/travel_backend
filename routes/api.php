@@ -58,6 +58,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/chatbot', [ChatController::class, 'chat'])->middleware('throttle:30,1');
 Route::post('/partners/register', [PartnerRegistrationController::class, 'store']);
+Route::get('/preferences/options', [\App\Http\Controllers\Api\PreferenceController::class, 'options']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

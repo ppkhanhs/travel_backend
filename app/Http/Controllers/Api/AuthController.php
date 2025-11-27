@@ -3,41 +3,48 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use App\Models\User;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    // 1. Đăng ký
-    public function register(Request $request)
+    public function register(Request $request): JsonResponse
     {
-        // validate + tạo user
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'nullable|string|unique:users,phone',
+            'password' => 'required|string|min:6',
+            'preferences' => 'sometimes|array|max:10',
+            'preferences.*' => 'string|max:50',
+        ]);
+
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'password' => bcrypt($request->password),
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'password' => bcrypt($data['password']),
             'role' => 'customer',
+            'preferences' => $this->sanitizePreferences($data['preferences'] ?? []),
         ]);
 
         return response()->json([
             'message' => 'Đăng ký thành công',
-            'user' => $user
+            'user' => $user,
         ], 201);
     }
 
-    // 2. Đăng nhập
-    public function login(Request $request)
+    public function login(Request $request): JsonResponse
     {
         $request->validate([
             'email' => 'required',
-            'password' => 'required'
+            'password' => 'required',
         ]);
 
         $user = User::where('email', $request->email)
@@ -46,7 +53,7 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Email/Số điện thoại hoặc mật khẩu không đúng.'],
+                'email' => ['Email/SĐT hoặc mật khẩu không đúng.'],
             ]);
         }
 
@@ -55,33 +62,33 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Đăng nhập thành công',
             'access_token' => $token,
-            'user' => $user
+            'user' => $user,
         ]);
     }
 
-    // 3. Đăng xuất
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
-            'message' => 'Đăng xuất thành công'
+            'message' => 'Đăng xuất thành công',
         ]);
     }
 
-    // 4. Thông tin người dùng đang đăng nhập
-    public function profile(Request $request)
+    public function profile(Request $request): JsonResponse
     {
         return response()->json($request->user());
     }
 
-    public function updateProfile(Request $request)
+    public function updateProfile(Request $request): JsonResponse
     {
         $user = $request->user();
 
         $data = $request->validate([
             'name' => 'nullable|string|max:255',
             'phone' => ['nullable', 'string', 'max:50', 'unique:users,phone,' . $user->id],
+            'preferences' => 'sometimes|array|max:10',
+            'preferences.*' => 'string|max:50',
             'address_line1' => 'nullable|string|max:255',
             'address_line2' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:150',
@@ -90,10 +97,16 @@ class AuthController extends Controller
             'country' => 'nullable|string|max:150',
         ]);
 
-        $user->fill(array_filter(
+        $payload = array_filter(
             $data,
             fn ($value) => !is_null($value)
-        ));
+        );
+
+        if (array_key_exists('preferences', $payload)) {
+            $payload['preferences'] = $this->sanitizePreferences($payload['preferences']);
+        }
+
+        $user->fill($payload);
         $user->save();
 
         return response()->json([
@@ -102,32 +115,29 @@ class AuthController extends Controller
         ]);
     }
 
-    public function forgotPassword(Request $request)
+    public function forgotPassword(Request $request): JsonResponse
     {
         $request->validate([
             'type' => 'required|in:email,phone',
-            'value' => 'required'
+            'value' => 'required',
         ]);
 
         $type = $request->type;
         $value = $request->value;
 
-        // Tìm user theo email hoặc phone
         $user = User::where($type, $value)->first();
 
         if (!$user) {
             return response()->json(['message' => 'Tài khoản không tồn tại'], 404);
         }
 
-        // Tạo mã OTP ngẫu nhiên
         $otp = rand(100000, 999999);
 
-        // Lưu vào bảng password_resets
         DB::table('password_resets')->updateOrInsert(
             [$type => $value],
             [
                 'token' => $otp,
-                'created_at' => now()
+                'created_at' => now(),
             ]
         );
 
@@ -136,17 +146,15 @@ class AuthController extends Controller
                 $message->to($value)->subject('OTP Quên mật khẩu');
             });
         } else {
-            // Tích hợp dịch vụ SMS thực tế (ví dụ: Twilio/Nexmo)
-            // SMS::send($value, "Mã OTP là: $otp");
-            logger("GỬI OTP $otp tới số điện thoại $value (giả lập)");
+            logger("Gửi OTP $otp tới số điện thoại $value (giả lập)");
         }
 
         return response()->json([
-            'message' => 'Đã gửi mã xác nhận thành công'
+            'message' => 'Đã gửi mã xác nhận thành công',
         ]);
     }
 
-    public function verifyOtp(Request $request)
+    public function verifyOtp(Request $request): JsonResponse
     {
         $request->validate([
             'type' => 'required|in:email,phone',
@@ -164,11 +172,11 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'message' => 'OTP hợp lệ, bạn có thể đặt lại mật khẩu.'
+            'message' => 'OTP hợp lệ, bạn có thể đặt lại mật khẩu.',
         ]);
     }
 
-    public function resetPassword(Request $request)
+    public function resetPassword(Request $request): JsonResponse
     {
         $request->validate([
             'type' => 'required|in:email,phone',
@@ -177,11 +185,22 @@ class AuthController extends Controller
         ]);
 
         User::where($request->type, $request->value)->update([
-            'password' => bcrypt($request->new_password)
+            'password' => bcrypt($request->new_password),
         ]);
 
         DB::table('password_resets')->where($request->type, $request->value)->delete();
 
         return response()->json(['message' => 'Đặt lại mật khẩu thành công']);
+    }
+
+    private function sanitizePreferences(array $preferences): array
+    {
+        return collect($preferences)
+            ->filter(fn ($item) => is_string($item) && trim($item) !== '')
+            ->map(fn ($item) => mb_substr(trim($item), 0, 50))
+            ->unique()
+            ->take(10)
+            ->values()
+            ->all();
     }
 }

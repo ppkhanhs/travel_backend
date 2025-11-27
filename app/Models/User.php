@@ -31,6 +31,7 @@ class User extends Authenticatable
         'role',
         'status',
         'notifications_enabled',
+        'preferences',
         'address_line1',
         'address_line2',
         'city',
@@ -58,6 +59,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'phone_verified_at' => 'datetime',
         'notifications_enabled' => 'boolean',
+        'preferences' => 'array',
     ];
 
     protected $keyType = 'string';      // id là string (UUID)
