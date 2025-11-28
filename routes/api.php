@@ -119,6 +119,7 @@ Route::prefix('auth')->controller(AuthOtpController::class)->group(function () {
 Route::prefix('auth/social')->controller(SocialAuthController::class)->group(function () {
     Route::get('{provider}/redirect', 'redirect');
     Route::get('{provider}/callback', 'callback');
+    Route::post('google/mobile', 'googleMobile');
 });
 
 Route::get('/home', [HomeController::class, 'index']);

@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -126,6 +127,91 @@ class SocialAuthController extends Controller
         }
 
         return response()->json($payload);
+    }
+
+    /**
+     * Đăng nhập Google cho mobile: nhận id_token từ app, xác thực với Google, tạo user + token hệ thống.
+     */
+    public function googleMobile(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'id_token' => 'required|string',
+        ]);
+
+        $response = Http::get('https://oauth2.googleapis.com/tokeninfo', [
+            'id_token' => $data['id_token'],
+        ]);
+
+        if ($response->failed()) {
+            return response()->json(['message' => 'Token không hợp lệ.'], 422);
+        }
+
+        $payload = $response->json();
+        $aud = $payload['aud'] ?? null;
+        $allowedAudiences = array_values(array_filter([
+            env('GOOGLE_CLIENT_ID'),
+            env('GOOGLE_CLIENT_ID_ANDROID'),
+            env('GOOGLE_CLIENT_ID_IOS'),
+        ]));
+
+        if (!$aud || !in_array($aud, $allowedAudiences, true)) {
+            return response()->json(['message' => 'Token không đúng client.'], 422);
+        }
+
+        $email = $payload['email'] ?? null;
+        $name = $payload['name'] ?? null;
+        $sub = $payload['sub'] ?? null;
+
+        if (!$email) {
+            return response()->json(['message' => 'Không lấy được email từ Google.'], 422);
+        }
+
+        $user = User::where('email', $email)->first();
+        if (!$user) {
+            $user = User::create([
+                'name' => $name ?: 'Google User',
+                'email' => $email,
+                'role' => 'customer',
+                'password' => bcrypt(Str::random(16)),
+                'email_verified_at' => now(),
+            ]);
+        } else {
+            if (!$user->email_verified_at) {
+                $user->email_verified_at = now();
+                $user->save();
+            }
+        }
+
+        // Lưu thông tin liên kết social (nếu có sub)
+        if ($sub) {
+            SocialAccount::updateOrCreate(
+                [
+                    'provider' => 'google',
+                    'provider_user_id' => $sub,
+                ],
+                [
+                    'user_id' => $user->id,
+                    'email' => $email,
+                    'access_token' => null,
+                    'refresh_token' => null,
+                    'token_expires_at' => null,
+                    'meta' => [
+                        'name' => $name,
+                        'picture' => $payload['picture'] ?? null,
+                    ],
+                ]
+            );
+        }
+
+        $token = $user->createToken('api-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Đăng nhập Google thành công.',
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user->fresh(),
+            'provider' => 'google',
+        ]);
     }
 
     private function findOrCreateUser(?string $email, ?string $name): User
