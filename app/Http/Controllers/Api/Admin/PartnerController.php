@@ -101,8 +101,10 @@ class PartnerController extends Controller
                     ]);
                 }
 
+                // Luôn đặt lại mật khẩu ngẫu nhiên và kích hoạt user khi duyệt
+                $generatedPassword = Str::random(12);
+
                 if (!$partner->user_id) {
-                    $generatedPassword = Str::random(12);
                     $user = User::create([
                         'name' => $partner->contact_name ?: $partner->company_name,
                         'email' => $partner->contact_email,
@@ -111,10 +113,12 @@ class PartnerController extends Controller
                         'role' => 'partner',
                         'status' => 'active',
                     ]);
-
                     $partner->user_id = $user->id;
                 } else {
-                    $partner->user?->update(['status' => 'active']);
+                    $partner->user?->update([
+                        'status' => 'active',
+                        'password' => Hash::make($generatedPassword),
+                    ]);
                 }
 
                 $partner->approved_at = now();
@@ -193,4 +197,3 @@ class PartnerController extends Controller
         }
     }
 }
-
