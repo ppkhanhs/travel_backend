@@ -56,7 +56,7 @@ Route::post('/analytics/events', [AnalyticsEventController::class, 'store'])
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::post('/chatbot', [ChatController::class, 'chat'])->middleware('throttle:30,1');
+Route::post('/chatbot', [ChatController::class, 'chat'])->middleware(['auth:sanctum', 'throttle:30,1']);
 Route::post('/partners/register', [PartnerRegistrationController::class, 'store']);
 Route::get('/preferences/options', [\App\Http\Controllers\Api\PreferenceController::class, 'options']);
 
