@@ -61,6 +61,7 @@ def evaluate(recs: Dict[str, List[str]], truth: Dict[str, Set[str]], k: int):
     precisions = []
     recalls = []
     ndcgs = []
+    f1s = []
 
     users = set(recs.keys()) | set(truth.keys())
     for user in users:
@@ -76,12 +77,17 @@ def evaluate(recs: Dict[str, List[str]], truth: Dict[str, Set[str]], k: int):
         precisions.append(hits / denom_precision)
         recalls.append(hits / denom_recall)
         ndcgs.append(ndcg_at_k(recommended, relevant, k))
+        p = precisions[-1]
+        r = recalls[-1]
+        f1 = 0.0 if (p + r) == 0 else 2 * p * r / (p + r)
+        f1s.append(f1)
 
     mean = lambda arr: sum(arr) / len(arr) if arr else 0.0
     return {
         "precision_at_k": round(mean(precisions), 4),
         "recall_at_k": round(mean(recalls), 4),
         "ndcg_at_k": round(mean(ndcgs), 4),
+        "f1_at_k": round(mean(f1s), 4),
         "users_evaluated": len(precisions),
     }
 
@@ -101,4 +107,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
