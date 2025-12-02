@@ -154,6 +154,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::get('/partner/refund-requests', [PartnerRefundController::class, 'index']);
     Route::post('/partner/refund-requests/{id}/status', [PartnerRefundController::class, 'update']);
+
+    // Support tickets (customer & admin)
+    Route::get('/support-tickets', [\App\Http\Controllers\Api\SupportTicketController::class, 'index']);
+    Route::post('/support-tickets', [\App\Http\Controllers\Api\SupportTicketController::class, 'store']);
+    Route::get('/support-tickets/{id}', [\App\Http\Controllers\Api\SupportTicketController::class, 'show']);
+    Route::patch('/support-tickets/{id}/status', [\App\Http\Controllers\Api\SupportTicketController::class, 'updateStatus'])
+        ->middleware('ensure_admin');
 });
 
 // Admin routes
