@@ -226,7 +226,8 @@ class RecommendationTrainer
             if ($weight <= 0) {
                 continue;
             }
-            $days = $log->created_at ? $log->created_at->diffInDays($now) : 0;
+            $created = $log->created_at ? Carbon::parse($log->created_at) : null;
+            $days = $created ? $created->diffInDays($now) : 0;
             $this->accumulateScore($scores, (string) $log->user_id, $tourId, $weight, $days);
         }
 
