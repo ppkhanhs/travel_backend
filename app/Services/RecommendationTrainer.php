@@ -8,6 +8,7 @@ use App\Models\RecommendationEmbedding;
 use App\Models\RecommendationFeature;
 use App\Models\RecommendationPopularity;
 use App\Models\Tour;
+use App\Models\UserActivityLog;
 use App\Models\User;
 use App\Models\Wishlist;
 use Illuminate\Support\Carbon;
@@ -135,6 +136,8 @@ class RecommendationTrainer
         $scores = [];
         $now = now();
         $cutoff = $now->copy()->subYear();
+        $approvedTours = Tour::approved()->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $approvedSet = array_fill_keys($approvedTours, true);
 
         $events = AnalyticsEvent::query()
             ->whereNotNull('user_id')
@@ -149,7 +152,11 @@ class RecommendationTrainer
 
             $weight = RecommendationService::EVENT_WEIGHTS[$event->event_name] ?? 1.0;
             $days = $event->occurred_at ? $event->occurred_at->diffInDays($now) : 0;
-            $this->accumulateScore($scores, (string) $event->user_id, (string) $event->entity_id, $weight, $days);
+            $tourId = (string) $event->entity_id;
+            if (!isset($approvedSet[$tourId])) {
+                continue;
+            }
+            $this->accumulateScore($scores, (string) $event->user_id, $tourId, $weight, $days);
         }
 
         $bookings = Booking::query()
@@ -166,6 +173,10 @@ class RecommendationTrainer
                 continue;
             }
 
+            if (!isset($approvedSet[$booking->tour_id])) {
+                continue;
+            }
+
             $days = $booking->booking_date ? $booking->booking_date->diffInDays($now) : 0;
             $this->accumulateScore($scores, (string) $booking->user_id, (string) $booking->tour_id, 6.0, $days);
         }
@@ -179,10 +190,44 @@ class RecommendationTrainer
                 continue;
             }
 
+            if (!isset($approvedSet[$wishlist->tour_id])) {
+                continue;
+            }
+
             $createdAt = $wishlist->created_at ? Carbon::parse($wishlist->created_at) : null;
             $days = $createdAt ? $createdAt->diffInDays($now) : 0;
 
             $this->accumulateScore($scores, (string) $wishlist->user_id, (string) $wishlist->tour_id, 3.0, $days);
+        }
+
+        // Ingest user_activity_logs (aligned to EVENT_WEIGHTS)
+        $activityWeights = [
+            'tour_view' => RecommendationService::EVENT_WEIGHTS['tour_view'] ?? 1.0,
+            'wishlist_add' => RecommendationService::EVENT_WEIGHTS['wishlist_add'] ?? 3.0,
+            'cart_add' => RecommendationService::EVENT_WEIGHTS['cart_add'] ?? 4.0,
+            'booking_created' => RecommendationService::EVENT_WEIGHTS['booking_created'] ?? 6.0,
+            'booking_cancelled' => RecommendationService::EVENT_WEIGHTS['booking_cancelled'] ?? 0.0,
+            'review_submitted' => RecommendationService::EVENT_WEIGHTS['review_submitted'] ?? (RecommendationService::EVENT_WEIGHTS['review_submit'] ?? 5.0),
+        ];
+
+        $activityLogs = UserActivityLog::query()
+            ->where('created_at', '>=', $cutoff)
+            ->whereNotNull('user_id')
+            ->whereNotNull('tour_id')
+            ->whereIn('action', array_keys($activityWeights))
+            ->get(['user_id', 'tour_id', 'action', 'created_at']);
+
+        foreach ($activityLogs as $log) {
+            $tourId = (string) $log->tour_id;
+            if (!isset($approvedSet[$tourId])) {
+                continue;
+            }
+            $weight = $activityWeights[$log->action] ?? 0.0;
+            if ($weight <= 0) {
+                continue;
+            }
+            $days = $log->created_at ? $log->created_at->diffInDays($now) : 0;
+            $this->accumulateScore($scores, (string) $log->user_id, $tourId, $weight, $days);
         }
 
         $userIds = array_keys($scores);
@@ -208,8 +253,12 @@ class RecommendationTrainer
                     continue;
                 }
 
+                if ($score <= 0) {
+                    continue;
+                }
+
                 $iIdx = $tourIndex[$tourId];
-                $ratings[] = [$uIdx, $iIdx, (float) max(0.5, $score)];
+                $ratings[] = [$uIdx, $iIdx, (float) max(0.1, $score)];
             }
         }
 
@@ -604,14 +653,14 @@ class RecommendationTrainer
     }
     private function accumulateScore(array &$scores, string $userId, string $tourId, float $weight, int $daysAgo): void
     {
-        if ($weight <= 0) {
+        if ($weight === 0.0) {
             return;
         }
 
         $decay = $this->service->decayFactor($daysAgo);
         $score = $weight * $decay;
 
-        if ($score <= 0) {
+        if ($score === 0.0) {
             return;
         }
 

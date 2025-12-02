@@ -21,10 +21,13 @@ class RecommendationService
         'wishlist_add' => 3.0,
         'cart_add' => 4.0,
         'booking_success' => 6.0,
+        'booking_created' => 6.0,
+        'booking_cancelled' => -2.0,
         'review_submit' => 5.0,
+        'review_submitted' => 5.0,
     ];
 
-    private const HALF_LIFE_DAYS = 14;
+    private const HALF_LIFE_DAYS = 30;
     private const REFRESH_EVENT_THRESHOLD = 2;
     private const REFRESH_STALE_MINUTES = 30;
     private const COMPONENT_WEIGHTS = [
