@@ -21,7 +21,7 @@ class RecommendationService
         'wishlist_add' => 3.0,
         'cart_add' => 4.0,
         'booking_success' => 6.0,
-        'booking_created' => 6.0,
+        'booking_created' => 4.5,
         'booking_cancelled' => -2.0,
         'review_submit' => 5.0,
         'review_submitted' => 5.0,
