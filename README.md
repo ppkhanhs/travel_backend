@@ -61,13 +61,4 @@ php scripts/export_eval_data.php
 python scripts/eval_recommendations.py --recommendations recs.json --groundtruth groundtruth.csv --k 5
 ```
 
-## Support Ticket (API mới)
-- Tạo: `POST /api/support-tickets` (subject, message, booking_id optional)
-- Danh sách: `GET /api/support-tickets`
-- Chi tiết: `GET /api/support-tickets/{id}`
-- Admin cập nhật trạng thái: `PATCH /api/support-tickets/{id}/status` (status: open|in_progress|resolved|closed)
-
-## Lưu ý
-- Không commit `.env` thật; dùng `.env.example`.
-- Nếu dùng backend Render, chỉ cần chạy frontend web & mobile local, trỏ đúng API base URL.
 
